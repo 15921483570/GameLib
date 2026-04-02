@@ -125,6 +125,8 @@ typedef BOOL (WINAPI *PFN_GdiFlush)(void);
 typedef DWORD   (WINAPI *PFN_timeGetTime)(void);
 typedef DWORD   (WINAPI *PFN_timeBeginPeriod)(UINT);
 typedef DWORD   (WINAPI *PFN_timeEndPeriod)(UINT);
+typedef UINT (WINAPI *PFN_timeSetEvent)(UINT, UINT, DWORD_PTR, DWORD_PTR, UINT);
+typedef UINT (WINAPI *PFN_timeKillEvent)(UINT);
 typedef BOOL    (WINAPI *PFN_PlaySoundA)(LPCSTR, HMODULE, DWORD);
 typedef MCIERROR (WINAPI *PFN_mciSendStringA)(LPCSTR, LPSTR, UINT, HWND);
 
@@ -426,6 +428,8 @@ private:
     float _fps;
     float _fpsAccum;
     DWORD _fpsTime;
+    HANDLE _timerEvent;     // event signaled by multimedia timer
+    UINT   _timerId;        // multimedia timer ID (from timeSetEvent)
 
     // sprite storage
     struct GameSprite { int width, height; uint32_t *pixels; bool used; };
@@ -579,6 +583,8 @@ static PFN_GdiFlush              _gl_GdiFlush              = NULL;
 static PFN_timeGetTime         _gl_timeGetTime        = NULL;
 static PFN_timeBeginPeriod     _gl_timeBeginPeriod    = NULL;
 static PFN_timeEndPeriod       _gl_timeEndPeriod      = NULL;
+static PFN_timeSetEvent        _gl_timeSetEvent       = NULL;
+static PFN_timeKillEvent       _gl_timeKillEvent      = NULL;
 static PFN_PlaySoundA          _gl_PlaySoundA         = NULL;
 static PFN_mciSendStringA      _gl_mciSendStringA     = NULL;
 
@@ -614,6 +620,8 @@ static int _gamelib_load_apis()
     _gl_timeGetTime       = (PFN_timeGetTime)GetProcAddress(hWinmm, "timeGetTime");
     _gl_timeBeginPeriod   = (PFN_timeBeginPeriod)GetProcAddress(hWinmm, "timeBeginPeriod");
     _gl_timeEndPeriod     = (PFN_timeEndPeriod)GetProcAddress(hWinmm, "timeEndPeriod");
+    _gl_timeSetEvent      = (PFN_timeSetEvent)GetProcAddress(hWinmm, "timeSetEvent");
+    _gl_timeKillEvent     = (PFN_timeKillEvent)GetProcAddress(hWinmm, "timeKillEvent");
     _gl_PlaySoundA        = (PFN_PlaySoundA)GetProcAddress(hWinmm, "PlaySoundA");
     _gl_mciSendStringA    = (PFN_mciSendStringA)GetProcAddress(hWinmm, "mciSendStringA");
 
@@ -634,7 +642,8 @@ static int _gamelib_load_apis()
         _gl_SetTextColor = NULL; _gl_SetBkMode = NULL;
         _gl_GetTextExtentPoint32W = NULL; _gl_GdiFlush = NULL;
         _gl_timeGetTime = NULL; _gl_timeBeginPeriod = NULL;
-        _gl_timeEndPeriod = NULL; _gl_PlaySoundA = NULL;
+        _gl_timeEndPeriod = NULL; _gl_timeSetEvent = NULL;
+        _gl_timeKillEvent = NULL; _gl_PlaySoundA = NULL;
         _gl_mciSendStringA = NULL;
         FreeLibrary(hGdi32);
         FreeLibrary(hWinmm);
@@ -851,6 +860,8 @@ GameLib::GameLib()
     _fps = 0.0f;
     _fpsAccum = 0.0f;
     _fpsTime = 0;
+    _timerEvent = NULL;
+    _timerId = 0;
     memset(_bmi_data, 0, sizeof(_bmi_data));
     _musicPlaying = false;
     if (!_srandDone) {
@@ -915,6 +926,15 @@ GameLib::~GameLib()
     if (_hwnd) {
         DestroyWindow(_hwnd);
         _hwnd = NULL;
+    }
+    // Clean up multimedia timer
+    if (_timerId && _gl_timeKillEvent) {
+        _gl_timeKillEvent(_timerId);
+        _timerId = 0;
+    }
+    if (_timerEvent) {
+        CloseHandle(_timerEvent);
+        _timerEvent = NULL;
     }
     if (_gl_timeEndPeriod) {
         _gl_timeEndPeriod(1);
@@ -1200,6 +1220,14 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     _fps = 0.0f;
     _deltaTime = 0.0f;
 
+    // Create 1ms periodic multimedia timer for precise frame timing
+    _timerEvent = CreateEventA(NULL, FALSE, FALSE, NULL);
+    _timerId = 0;
+    if (_timerEvent && _gl_timeSetEvent) {
+        // TIME_PERIODIC=1, TIME_CALLBACK_EVENT_SET=0x0010
+        _timerId = _gl_timeSetEvent(1, 0, (DWORD_PTR)_timerEvent, 0, 0x0001 | 0x0010);
+    }
+
     // Initialize input
     memset(_keys, 0, sizeof(_keys));
     memset(_keys_prev, 0, sizeof(_keys_prev));
@@ -1266,11 +1294,16 @@ void GameLib::WaitFrame(int fps)
 {
     if (fps <= 0) fps = 60;
     DWORD frameTime = 1000 / fps;
-    DWORD now = _gl_timeGetTime();
-    int32_t elapsed = (int32_t)(now - _timePrev);
-    if (elapsed < 0) elapsed = 0;
-    if ((DWORD)elapsed < frameTime) {
-        Sleep(frameTime - (DWORD)elapsed);
+    for (;;) {
+        DWORD now = _gl_timeGetTime();
+        int32_t elapsed = (int32_t)(now - _timePrev);
+        if (elapsed < 0) elapsed = 0;
+        if ((DWORD)elapsed >= frameTime) break;
+        if (_timerEvent && _timerId) {
+            WaitForSingleObject(_timerEvent, 2);
+        } else {
+            Sleep(1);
+        }
     }
 }
 
