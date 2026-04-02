@@ -105,6 +105,14 @@ g++ -o game.exe main.cpp -mwindows
 - `DrawGrid` / `FillCell` — 网格绘制（适合俄罗斯方块、棋盘类游戏）
 - `GetDeltaTime` / `GetFPS` — 帧时间和帧率
 
+### Tilemap 系统
+
+- `CreateTilemap` — 用 tileset 精灵创建瓦片地图
+- `SetTile` / `GetTile` — 设置和读取瓦片
+- `DrawTilemap` — 绘制地图，支持不透明、Color Key、Alpha 三种模式
+- 只绘制屏幕可见范围内的瓦片，大地图也不卡
+- 配合相机偏移轻松实现横版卷轴和视差滚动
+
 
 
 
@@ -284,7 +292,7 @@ int main()
 
 ## 示例程序
 
-`examples/` 目录包含 13 个由浅入深的示例，逐步展示 GameLib 的各项功能。前 7 个纯代码绘图，复制即可编译运行；后 6 个涉及精灵、音效等外部资源（存放在 `assets/` 目录）。
+`examples/` 目录包含 14 个由浅入深的示例，逐步展示 GameLib 的各项功能。前 7 个纯代码绘图，复制即可编译运行；后 7 个涉及精灵、音效、Tilemap 等功能。
 
 编译任意示例：
 
@@ -324,6 +332,12 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | `11_snake.cpp` | 贪吃蛇 | DrawGrid/FillCell、游戏状态机 |
 | `12_breakout.cpp` | 打砖块 | 碰撞检测深度运用、多对象管理 |
 | `13_space_shooter.cpp` | 太空射击 | 综合：精灵 + 音效 + 碰撞 + 滚动背景 + 计分 |
+
+### Tilemap 卷轴
+
+| 示例 | 说明 | 学到什么 |
+|-|-|-|
+| `14_tilemap.cpp` | 双层卷轴 | CreateTilemap、视差滚动、代码生成瓦片图形 |
 
 
 
@@ -415,6 +429,18 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | `DrawGrid(x, y, rows, cols, size, color)` | 画网格 |
 | `FillCell(gx, gy, row, col, size, color)` | 填充网格单元 |
 
+### Tilemap
+
+| 函数 | 说明 |
+|-|-|
+| `CreateTilemap(cols, rows, tileSize, tilesetId)` | 创建瓦片地图，返回 ID |
+| `FreeTilemap(mapId)` | 释放地图 |
+| `SetTile(mapId, col, row, tileId)` | 设置瓦片（-1=空） |
+| `GetTile(mapId, col, row)` | 读取瓦片 |
+| `DrawTilemap(mapId, x, y, flags)` | 绘制地图（支持 ColorKey/Alpha） |
+
+tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`DrawTilemap` 只绘制屏幕可见瓦片，传 `(-cameraX, -cameraY)` 即可实现卷轴。
+
 ### 颜色常量
 
 ```
@@ -433,6 +459,7 @@ COLOR_BROWN    COLOR_GOLD      COLOR_TRANSPARENT
 ## 适合做什么？
 
 - 太空射击 (Space Shooter)
+- 横版卷轴 (Side-Scrolling Platformer)
 - 俄罗斯方块 (Tetris)
 - 贪吃蛇 (Snake)
 - 打砖块 (Breakout)

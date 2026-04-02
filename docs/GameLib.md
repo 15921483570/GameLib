@@ -5,7 +5,7 @@
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
 **文件位置**: `GameLib.h`
-**当前行数**: ~1893 行
+**当前行数**: ~2108 行
 **最后修改**: 2026/04/02
 
 ---
@@ -67,6 +67,7 @@ GameLib.h
 │   └── 动态加载函数指针类型 (gdi32/winmm/gdiplus/ole32)
 ├── 第二部分：类声明
 │   ├── GameSprite 结构体（GameLib 类内部嵌套）
+│   ├── GameTilemap 结构体（GameLib 类内部嵌套）
 │   └── GameLib 类 (公开方法 + 私有成员)
 ├── 第三部分：8x8 点阵字体数据 (ASCII 32-126)
 ├── #ifdef GAMELIB_IMPLEMENTATION
@@ -82,7 +83,8 @@ GameLib.h
 │       ├── 输入系统 (Key, Mouse)
 │       ├── 声音 (Beep, WAV, Music/MCI)
 │       ├── 工具函数 (Random, 碰撞检测, 距离)
-│       └── 网格辅助 (DrawGrid, FillCell)
+│       ├── 网格辅助 (DrawGrid, FillCell)
+│       └── Tilemap 系统 (Create, Free, Set/Get, Draw)
 ├── #endif // GAMELIB_IMPLEMENTATION
 └── #endif // GAMELIB_H
 ```
@@ -202,7 +204,20 @@ struct GameSprite {
 };
 ```
 
-### 5.2 GameLib 私有成员
+### 5.2 GameTilemap
+
+```cpp
+struct GameTilemap {
+    int cols, rows;     // 地图网格大小（列数 × 行数）
+    int tileSize;       // 瓦片边长（像素）
+    int tilesetId;      // tileset 精灵 ID
+    int tilesetCols;    // tileset 每行有多少个瓦片（自动计算）
+    int *tiles;         // cols * rows 的瓦片 ID 数组（-1 = 空，malloc 分配）
+    bool used;          // 槽位是否被使用
+};
+```
+
+### 5.3 GameLib 私有成员
 
 ```cpp
 // 窗口状态
@@ -235,6 +250,9 @@ DWORD _fpsTime;         // FPS 统计时间窗口起点
 
 // 精灵存储
 std::vector<GameSprite> _sprites;
+
+// Tilemap 存储
+std::vector<GameTilemap> _tilemaps;
 
 // 音乐状态（MCI）
 bool _musicPlaying;     // 是否正在播放 MCI 音乐
@@ -463,6 +481,42 @@ static bool _srandDone; // srand 是否已初始化
 #### `void FillCell(int gridX, int gridY, int row, int col, int cellSize, uint32_t color)`
 - 填充网格中的一个单元格（留 1 像素内边距避免覆盖网格线）
 
+### 6.10 Tilemap 系统
+
+#### `int CreateTilemap(int cols, int rows, int tileSize, int tilesetId)`
+- 创建瓦片地图，返回整数 ID（失败返回 -1）
+- `cols × rows`：地图网格大小
+- `tileSize`：瓦片边长（像素），tileset 精灵按此尺寸切分为格子
+- `tilesetId`：通过 `LoadSprite` 或 `CreateSprite` 加载的精灵 ID，作为瓦片图集
+- tileset 中瓦片编号从 0 开始，从左到右、从上到下排列
+- 自动计算 `tilesetCols = spriteWidth / tileSize`
+- 所有格子初始化为 -1（空，不绘制）
+
+#### `void FreeTilemap(int mapId)`
+- 释放地图的 tiles 数组内存，标记槽位为未使用
+- 不释放 tileset 精灵（由用户通过 `FreeSprite` 管理）
+
+#### `void SetTile(int mapId, int col, int row, int tileId)`
+- 设置 (col, row) 处的瓦片编号
+- `tileId >= 0`：对应 tileset 中的第几块瓦片
+- `tileId = -1`：空格，不绘制
+
+#### `int GetTile(int mapId, int col, int row) const`
+- 获取 (col, row) 处的瓦片编号
+- 越界返回 -1
+
+#### `void DrawTilemap(int mapId, int x, int y, int flags = 0)`
+- 绘制瓦片地图到帧缓冲
+- `(x, y)`：地图左上角在屏幕上的位置（卷轴时传 `-cameraX, -cameraY`）
+- `flags`：绘制模式，与 `DrawSpriteEx` 一致：
+  - `0`（默认）— 不透明模式（跳过 alpha=0 的像素）
+  - `SPRITE_COLORKEY` — 跳过品红色（`COLORKEY_DEFAULT`）像素
+  - `SPRITE_ALPHA` — 逐像素 Alpha 混合
+  - `SPRITE_ALPHA | SPRITE_COLORKEY` — 可组合使用
+- **性能优化**：只绘制屏幕可见范围内的瓦片（自动计算可见列/行范围），不遍历整张地图
+- 每个瓦片做像素级边缘裁剪，处理屏幕边界的半瓦片
+- 按不透明/ColorKey/Alpha 三种模式展开独立循环，避免逐像素 flag 判断
+
 ---
 
 ## 7. 窗口过程 (WndProc) 处理的消息
@@ -495,6 +549,7 @@ static bool _srandDone; // srand 是否已初始化
 | `void _DrawHLine(int x1, int x2, int y, uint32_t c)` | 带裁剪的水平线（FillCircle/FillTriangle 内部用） |
 | `void _UpdateTitleFps()` | 当 `_showFps=true` 时更新标题栏 FPS 显示（在 FPS 统计更新时调用） |
 | `int _AllocSpriteSlot()` | 在 `_sprites` 向量中找空闲槽位或追加新槽位 |
+| `int _AllocTilemapSlot()` | 在 `_tilemaps` 向量中找空闲槽位或追加新槽位 |
 | `static int _gamelib_gdiplus_init()` | 懒加载 `gdiplus.dll` 和 `ole32.dll`，解析函数地址并调用 `GdiplusStartup`（仅首次执行） |
 | `static void _gamelib_com_release(void *obj)` | 通过 COM vtable 手动调用 `IUnknown::Release`（无需 ObjBase.h） |
 | `static uint32_t* _gamelib_gdiplus_load(...)` | 从内存数据通过 GDI+ 解码图片，返回 32bppARGB 像素数组 |
@@ -589,3 +644,9 @@ int main() {
 | `DrawSpriteEx` 预裁剪 + 三路循环展开 | 预裁剪消除内层逐像素边界检查；按不透明/ColorKey/Alpha 三种模式展开独立循环，避免逐像素 flag 分支 |
 | mmsystem 类型和常量自行声明 | 不再 `#include <mmsystem.h>`，减少头文件依赖，避免与 `WIN32_LEAN_AND_MEAN` 冲突 |
 | `unsigned int` 替代 `UINT32` | GCC 4.9.2 的 MinGW 头文件可能未定义 `UINT32` |
+| Tilemap tiles 用 `int*`（malloc 分配）管理 | 与精灵像素内存管理风格一致，析构时自动释放 |
+| Tilemap 瓦片 ID 用 -1 表示空 | 0 是有效的 tileset 第一块瓦片，-1 不会与任何瓦片冲突 |
+| `tilesetCols` 在 `CreateTilemap` 时预计算 | 避免 `DrawTilemap` 每帧重复计算除法 |
+| `DrawTilemap` 预计算可见瓦片范围 | 大地图（如 200×50）时只遍历屏幕内的瓦片，保证绘制性能 |
+| `DrawTilemap` 三路循环展开 | 与 `DrawSpriteEx` 一致的优化策略，避免逐像素 flag 分支 |
+| Tilemap 不管理 tileset 精灵的生命周期 | `FreeTilemap` 只释放 tiles 数组，tileset 精灵由用户通过 `FreeSprite` 控制 |
