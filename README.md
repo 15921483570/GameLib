@@ -347,11 +347,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 ### 绘图
 
 | 函数 | 说明 |
-|
-
-|
-
-|
+|-|-|
 | `Clear(color)` | 清屏 |
 | `SetPixel(x, y, color)` | 画点 |
 | `GetPixel(x, y)` | 读点 |
@@ -366,11 +362,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 ### 文字
 
 | 函数 | 说明 |
-|
-
-|
-
-|
+|-|-|
 | `DrawText(x, y, text, color)` | 绘制文字 |
 | `DrawNumber(x, y, number, color)` | 绘制整数 |
 | `DrawTextScale(x, y, text, color, scale)` | 放大文字 |
@@ -379,11 +371,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 ### 精灵
 
 | 函数 | 说明 |
-|
-
-|
-
-|
+|-|-|
 | `CreateSprite(w, h)` | 创建空白精灵，返回 ID |
 | `LoadSprite(filename)` | 加载图片精灵（PNG/JPG/BMP/GIF） |
 | `LoadSpriteBMP(filename)` | 从 BMP 加载精灵 |
@@ -399,11 +387,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 ### 输入
 
 | 函数 | 说明 |
-|
-
-|
-
-|
+|-|-|
 | `IsKeyDown(key)` | 按键是否按住 |
 | `IsKeyPressed(key)` | 按键是否刚按下（单次触发） |
 | `GetMouseX()` / `GetMouseY()` | 鼠标位置 |
@@ -412,11 +396,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 ### 声音
 
 | 函数 | 说明 |
-|
-
-|
-
-|
+|-|-|
 | `PlayWAV(filename, loop)` | 播放音效 |
 | `StopWAV()` | 停止音效 |
 | `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI） |
@@ -426,11 +406,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 ### 工具
 
 | 函数 | 说明 |
-|
-
-|
-
-|
+|-|-|
 | `Random(min, max)` | 随机数 |
 | `RectOverlap(...)` | 矩形碰撞检测 |
 | `CircleOverlap(...)` | 圆形碰撞检测 |
