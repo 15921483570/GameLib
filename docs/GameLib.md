@@ -523,13 +523,12 @@ int main() {
 ### 已知限制
 
 1. **无 Alpha 混合** — DrawSprite 仅判断 alpha > 0 来决定是否绘制，没有真正的 alpha blending
-2. **未经编译测试** — 当前系统无 C++ 编译器，仅通过 cppcheck 静态分析验证（0 errors）
-3. **C-style 强制转换** — cppcheck 会报 style 警告，但对目标用户群体来说可以接受
-4. **PlayBeep 是阻塞的** — 会暂停游戏循环
-5. **单窗口** — 窗口类名固定为 "GameLibWindowClass"，同时只能有一个 GameLib 实例正常工作
-6. **仅支持 BMP 加载** — 不支持 PNG/JPG 等格式
-7. **WaitFrame 精度** — 依赖 `Sleep`，在低 fps 目标下足够，高精度场景可能不够
-8. **MCI 音乐单通道** — 同时只能播放一首背景音乐（固定别名 `gamelib_music`）
+2. **C-style 强制转换** — cppcheck 会报 style 警告，但对目标用户群体来说可以接受
+3. **PlayBeep 是阻塞的** — 会暂停游戏循环
+4. **单窗口** — 窗口类名固定为 "GameLibWindowClass"，同时只能有一个 GameLib 实例正常工作
+5. **仅支持 BMP 加载** — 不支持 PNG/JPG 等格式
+6. **WaitFrame 精度** — 依赖 `Sleep`，在低 fps 目标下足够，高精度场景可能不够
+7. **MCI 音乐单通道** — 同时只能播放一首背景音乐（固定别名 `gamelib_music`）
 
 ### 未来改进方向
 
