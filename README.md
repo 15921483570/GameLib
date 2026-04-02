@@ -89,7 +89,7 @@ g++ -o game.exe main.cpp -mwindows
 - `IsKeyDown` — 按住检测
 - `IsKeyPressed` — 单次按下检测（按下瞬间触发一次）
 - 鼠标位置和三键状态
-- 预定义所有常用按键常量：`KEY_A`~`KEY_Z`、方向键、F1~F12
+- 预定义所有常用按键常量：`KEY_A`\~`KEY_Z`、方向键、F1\~F12
 
 ### 声音
 
