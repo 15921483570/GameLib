@@ -79,7 +79,7 @@ g++ -o game.exe main.cpp -mwindows
 
 ### 精灵系统
 
-- 通过 GDI+ 加载 PNG、JPG、BMP、GIF 等格式（也可直接加载 BMP）
+- 加载 PNG、JPG、BMP、GIF 等格式
 - 24 位图片自动补全 alpha 通道（设为不透明）
 - 翻转、Color Key 透明、Alpha 混合、区域裁剪绘制
 - 用整数 ID 管理，不需要理解指针和对象生命周期
