@@ -80,6 +80,7 @@ g++ -o game.exe main.cpp -mwindows
 ### 精灵系统
 
 - 加载 PNG、JPG、BMP、GIF 等格式
+- 支持 8-bit 调色板、24-bit、32-bit BMP（自动转换为 32 位 ARGB）
 - 24 位图片自动补全 alpha 通道（设为不透明）
 - 翻转、Color Key 透明、Alpha 混合、区域裁剪绘制
 - 用整数 ID 管理，不需要理解指针和对象生命周期
@@ -388,7 +389,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 |-|-|
 | `CreateSprite(w, h)` | 创建空白精灵，返回 ID |
 | `LoadSprite(filename)` | 加载图片精灵（PNG/JPG/BMP/GIF） |
-| `LoadSpriteBMP(filename)` | 从 BMP 加载精灵 |
+| `LoadSpriteBMP(filename)` | 从 BMP 加载精灵（8/24/32-bit） |
 | `FreeSprite(id)` | 释放精灵 |
 | `DrawSprite(id, x, y)` | 绘制精灵 |
 | `DrawSpriteEx(id, x, y, flags)` | 带翻转/透明/Alpha混合绘制 |

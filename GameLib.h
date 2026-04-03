@@ -1828,12 +1828,14 @@ int GameLib::LoadSpriteBMP(const char *filename)
 
     // Read header fields using memcpy to avoid strict aliasing / unaligned access
     int dataOffset; memcpy(&dataOffset, &header[10], 4);
+    int dibSize;    memcpy(&dibSize,    &header[14], 4);
     int width;      memcpy(&width,      &header[18], 4);
     int height;     memcpy(&height,     &header[22], 4);
     short bppShort; memcpy(&bppShort,   &header[28], 2);
     int bpp = bppShort;
+    int colorsUsed; memcpy(&colorsUsed, &header[46], 4);
 
-    if (bpp != 24 && bpp != 32) { fclose(fp); return -1; }
+    if (bpp != 8 && bpp != 24 && bpp != 32) { fclose(fp); return -1; }
 
     bool bottomUp = (height > 0);
     if (height < 0) height = -height;
@@ -1843,9 +1845,34 @@ int GameLib::LoadSpriteBMP(const char *filename)
         fclose(fp); return -1;
     }
 
+    // Read palette for 8-bit indexed BMP
+    uint32_t palette[256];
+    memset(palette, 0, sizeof(palette));
+
+    if (bpp == 8) {
+        int paletteCount = colorsUsed > 0 ? colorsUsed : 256;
+        if (paletteCount > 256) paletteCount = 256;
+
+        // Palette starts right after the DIB header (at offset 14 + dibSize)
+        fseek(fp, 14 + dibSize, SEEK_SET);
+
+        unsigned char palData[256 * 4];
+        int palBytes = paletteCount * 4;
+        if (fread(palData, 1, palBytes, fp) != (size_t)palBytes) {
+            fclose(fp); return -1;
+        }
+        // BMP palette entries are BGRX (4 bytes each: Blue, Green, Red, Reserved)
+        for (int i = 0; i < paletteCount; i++) {
+            unsigned char b = palData[i * 4 + 0];
+            unsigned char g = palData[i * 4 + 1];
+            unsigned char r = palData[i * 4 + 2];
+            palette[i] = COLOR_ARGB(0xFF, r, g, b);
+        }
+    }
+
     fseek(fp, dataOffset, SEEK_SET);
 
-    int bytesPerPixel = bpp / 8;
+    int bytesPerPixel = bpp / 8;  // 1 for 8-bit, 3 for 24-bit, 4 for 32-bit
     int rowSize = ((width * bytesPerPixel + 3) / 4) * 4;
     unsigned char *rowData = (unsigned char*)malloc(rowSize);
     if (!rowData) { fclose(fp); return -1; }
@@ -1857,12 +1884,19 @@ int GameLib::LoadSpriteBMP(const char *filename)
         if (fread(rowData, 1, rowSize, fp) != (size_t)rowSize) break;
         int destY = bottomUp ? (height - 1 - y) : y;
         uint32_t *destRow = _sprites[id].pixels + destY * width;
-        for (int x = 0; x < width; x++) {
-            unsigned char b = rowData[x * bytesPerPixel + 0];
-            unsigned char g = rowData[x * bytesPerPixel + 1];
-            unsigned char r = rowData[x * bytesPerPixel + 2];
-            unsigned char a = (bpp == 32) ? rowData[x * bytesPerPixel + 3] : 0xFF;
-            destRow[x] = COLOR_ARGB(a, r, g, b);
+        if (bpp == 8) {
+            // 8-bit indexed: each byte is a palette index
+            for (int x = 0; x < width; x++) {
+                destRow[x] = palette[rowData[x]];
+            }
+        } else {
+            for (int x = 0; x < width; x++) {
+                unsigned char b = rowData[x * bytesPerPixel + 0];
+                unsigned char g = rowData[x * bytesPerPixel + 1];
+                unsigned char r = rowData[x * bytesPerPixel + 2];
+                unsigned char a = (bpp == 32) ? rowData[x * bytesPerPixel + 3] : 0xFF;
+                destRow[x] = COLOR_ARGB(a, r, g, b);
+            }
         }
     }
 

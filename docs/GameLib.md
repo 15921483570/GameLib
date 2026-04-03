@@ -412,7 +412,8 @@ static bool _srandDone; // srand 是否已初始化
 - 尺寸限制：`1~16384`，使用 `(size_t)` 强转防止 malloc 溢出
 
 #### `int LoadSpriteBMP(const char *filename)`
-- 从 BMP 文件加载精灵，支持 **24-bit 和 32-bit** BMP
+- 从 BMP 文件加载精灵，支持 **8-bit（调色板）、24-bit 和 32-bit** BMP
+- **8-bit 调色板支持**：自动读取 BMP 调色板（最多 256 色），每个像素字节作为调色板索引，转换为 32-bit ARGB（alpha 默认 0xFF）
 - 处理 bottom-up / top-down 行序
 - 每行按 4 字节对齐读取
 - 24-bit BMP alpha 默认为 0xFF
@@ -704,6 +705,7 @@ int main() {
 | Tilemap 尺寸限制 4096 | 防止 `cols * rows` 整数溢出，4096 × 4096 = 16M tiles 已足够大 |
 | `CircleOverlap` / `FillTriangle` 使用 `int64_t` | 两个 `int` 坐标相减再相乘可溢出 32 位；`int64_t` 保证中间结果不溢出 |
 | `COLOR_RGB` / `COLOR_ARGB` 每分量 `& 0xFF` | 防止调用者传入超过 255 的值导致位移溢出污染相邻通道 |
+| `LoadSpriteBMP` 支持 8-bit 调色板 BMP | 许多经典游戏素材和工具导出 256 色 BMP；读取 DIB header 后的调色板（BGRX 格式，最多 256 条目），每像素字节查表转 32-bit ARGB |
 | `LoadSpriteBMP` 用 `memcpy` 读 BMP 头 | 避免通过指针强制转换（aliasing cast）读取未对齐的多字节字段，符合严格别名规则 |
 | `_gamelib_load_apis` 失败时清理所有指针 | GetProcAddress 部分失败时 NULL out 所有指针 + FreeLibrary 两个 DLL，防止悬空指针 |
 | `_gamelib_gdiplus_init` 失败时分级清理 | -2/-3 错误路径 FreeLibrary 已加载的 DLL；-4 错误（`GdiplusStartup` 失败）不释放 DLL 因为函数指针已指向 DLL 内部地址 |
