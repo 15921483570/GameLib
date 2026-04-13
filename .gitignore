@@ -44,7 +44,11 @@
 /.qoder/*
 /.claude/*
 /.ferrite/*
+/.vscode/*
+
 /scratch/*
+/publish/*
+
 /nul
 /assets/*.py
 /assets/**/*.py

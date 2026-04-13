@@ -23,7 +23,7 @@ int main() {
 }
 ```
 
-本规格文档的目标是先把 `GameLib.SDL.h` 的定位、依赖、内部架构、兼容边界和分阶段实现路线固定下来，确认后再进入实现。
+本文档既用于固定 `GameLib.SDL.h` 的定位、依赖、内部架构与兼容边界，也用于同步当前已经落地的实现状态与剩余收尾项。
 
 ---
 
@@ -565,7 +565,8 @@ SDL 版的 `DrawTextFont()` 与测量函数应继续支持：
 说明：
 
 - 这比在库内硬编码某个平台字体路径更可控。
-- 后续若需要，也可再补一套“常见系统字体候选路径”搜索逻辑。
+- 当前实现已经补上了“常见系统字体候选路径”搜索逻辑：会优先尝试显式字体文件路径，再尝试常见家族名映射，最后回退到平台默认候选字体。
+- 但这仍然是 best effort 行为；若你需要稳定、可复现的字形结果，仍建议显式设置 `GAMELIB_SDL_DEFAULT_FONT` 或直接传入字体文件路径。
 
 ### 8.5 字体缓存
 
@@ -611,13 +612,13 @@ SDL 版仍保留 `LoadSpriteBMP()`，目的有二：
 - 与现有 API 兼容。
 - 即使 `SDL2_image` 在某些极简构建中不可用，也仍有纯 BMP 加载后路。
 
-建议直接复用当前 `GameLib.h` 的 BMP 解析策略：
+当前实现采用 `SDL_LoadBMP()` + `SDL_ConvertSurfaceFormat(..., SDL_PIXELFORMAT_ARGB8888, 0)` 的路径，再拷贝到库自己的精灵缓冲中。
 
-- 支持 8-bit 调色板 BMP
-- 支持 24-bit BMP
-- 支持 32-bit BMP
-- 处理 top-down / bottom-up 行序
-- 行按 4 字节对齐
+这意味着：
+
+- BMP 解码细节交由 SDL 负责。
+- `GameLib.SDL.h` 仍然保持“最终像素数据由自己持有和绘制”的语义。
+- 若未来发现需要与 `GameLib.h` 的某些 BMP 边角行为严格对齐，再单独评估是否引入自有 BMP 解析路径。
 
 ### 9.4 LoadSprite
 
@@ -844,11 +845,11 @@ static bool _srandDone;
 
 ---
 
-## 14. 首版实现优先级
+## 14. 首版实现状态与收尾项
 
-建议按以下顺序推进：
+当前状态已经不再是纯规划阶段。下面保留最初的分阶段思路，但同步标注当前落地情况。
 
-### 阶段 1：最小运行闭环
+### 阶段 1：最小运行闭环（已完成）
 
 - `Open`
 - `IsClosed`
@@ -863,8 +864,9 @@ static bool _srandDone;
 目标：
 
 - 让最简单的 hello / moving box / basic drawing 示例先跑起来。
+- 当前状态：已完成，基础窗口、输入、时间、图元与内置文本路径已经由 `tests/sdldemo1.cpp` 覆盖。
 
-### 阶段 2：精灵与 Tilemap
+### 阶段 2：精灵与 Tilemap（已完成）
 
 - `CreateSprite`
 - `LoadSpriteBMP`
@@ -875,8 +877,9 @@ static bool _srandDone;
 目标：
 
 - 让 sprite demo、animation、tilemap 类示例可迁移。
+- 当前状态：已完成，`CreateSprite`、`LoadSpriteBMP`、`LoadSprite`、`DrawSprite*`、`CreateTilemap` / `DrawTilemap` 已落地，并由 `tests/sdldemo1.cpp` 覆盖基础回归。
 
-### 阶段 3：字体与音频
+### 阶段 3：字体与音频（已完成）
 
 - `DrawTextFont`
 - `GetTextWidthFont` / `GetTextHeightFont`
@@ -887,8 +890,10 @@ static bool _srandDone;
 目标：
 
 - 补齐跨平台版本最容易有差异的部分。
+- 当前状态：已完成。`DrawTextFont`、字体测量、best-effort 字体解析、`PlayWAV`、`PlayMusic`、`PlayBeep` 都已落地。
+- 回归入口：`tests/sdldemo2.cpp`、`tests/sdldemo3.cpp`、`tests/sdldemo4.cpp`。
 
-### 阶段 4：文档与示例迁移
+### 阶段 4：文档与示例迁移（基本完成）
 
 - 为 SDL 版补单独 README 段落
 - 增加 SDL 版构建命令
@@ -898,11 +903,27 @@ static bool _srandDone;
 
 - 让 SDL 版具备可验证的构建文档和最小回归样例。
 
+当前状态：
+
+- `docs/GameLib.SDL.md` 已同步到当前实现状态。
+- `AGENTS.md` 已补充 `GameLib.SDL.h` / `docs/GameLib.SDL.md` 的索引与用途。
+- README 仅保留一句 SDL 产品线提示，主叙事仍突出 Win32 零依赖主线。
+- `tests/sdldemo1.cpp` ~ `tests/sdldemo5.cpp` 已形成最小 SDL 回归集，其中 `tests/sdldemo5.cpp` 是从 `examples/14_tilemap.cpp` 迁移来的代表性资产示例。
+
+### 14.5 当前剩余收尾项
+
+以下项目仍属于“已知差异或可继续完善项”，但不阻塞 SDL 版当前作为独立产品线使用：
+
+- 还没有把 `examples/` 中的更多 Win32 示例系统迁成 SDL 版；目前以 `tests/sdldemo1.cpp` ~ `tests/sdldemo5.cpp` 为代表性回归入口，其中只迁移了一个资产驱动示例。
+- 字体家族名解析虽然已经有 best-effort 候选链，但不同平台上的字形、回退顺序与最终命中字库仍不保证完全一致。
+- `PlayMusic()` 的成功率仍受 `SDL_mixer` 在目标机器上的解码器支持影响；仓库内当前回归样例主要验证了 WAV 路径。
+- `LoadSpriteBMP()` 当前依赖 SDL 的 BMP 解码结果，而不是复刻 `GameLib.h` 的自有 BMP 解析实现；若后续发现具体兼容差异，再按案例补齐。
+
 ---
 
-## 15. 需要在实现前确认的决策
+## 15. 已确认的关键决策
 
-本规格当前的默认决策如下，若无异议则按此推进：
+当前实现已经按以下决策落地，这些也是后续继续维护 SDL 产品线时应保持稳定的前提：
 
 1. **产品线分离**：保留现有 `GameLib.h`，新建独立 `GameLib.SDL.h`。
 2. **公开类名不变**：SDL 版仍使用 `GameLib` 类名，不与 Win32 版混合包含。
