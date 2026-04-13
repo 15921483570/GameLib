@@ -42,7 +42,7 @@
 // Compile command (MinGW / Dev C++):
 //     g++ -o game.exe main.cpp -mwindows
 //
-// Last Modified: 2026/04/03
+// Last Modified: 2026/04/14
 //
 //=====================================================================
 #ifndef GAMELIB_H
@@ -57,8 +57,8 @@
 
 // Version Info
 #define GAMELIB_VERSION_MAJOR     1
-#define GAMELIB_VERSION_MINOR     0
-#define GAMELIB_VERSION_PATCH     2
+#define GAMELIB_VERSION_MINOR     1
+#define GAMELIB_VERSION_PATCH     0
 
 
 //---------------------------------------------------------------------
@@ -275,6 +275,10 @@ typedef HRESULT (WINAPI *PFN_CreateStreamOnHGlobal)(HGLOBAL, BOOL, void**);
 #define COLORKEY_DEFAULT  0xFFFF00FF
 #endif
 
+#ifndef GAMELIB_DEFAULT_FONT_NAME
+#define GAMELIB_DEFAULT_FONT_NAME "Microsoft YaHei"
+#endif
+
 
 //=====================================================================
 // Part 2: Class Declaration
@@ -322,11 +326,13 @@ public:
     void DrawTextScale(int x, int y, const char *text, uint32_t color, int scale);
     void DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...);
 
-    // -------- GDI Text Rendering (system fonts, Chinese support) --------
-    void DrawTextGDI(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize);
-    void DrawTextGDI(int x, int y, const char *text, uint32_t color, int fontSize);
-    int GetTextWidthGDI(const char *text, const char *fontName, int fontSize);
-    int GetTextHeightGDI(int fontSize);
+    // -------- Font Text Rendering (scalable fonts, Unicode support) --------
+    void DrawTextFont(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize);
+    void DrawTextFont(int x, int y, const char *text, uint32_t color, int fontSize);
+    int GetTextWidthFont(const char *text, const char *fontName, int fontSize);
+    int GetTextWidthFont(const char *text, int fontSize);
+    int GetTextHeightFont(const char *text, const char *fontName, int fontSize);
+    int GetTextHeightFont(const char *text, int fontSize);
 
     // -------- Sprite System (managed by integer ID) --------
     int CreateSprite(int width, int height);
@@ -411,7 +417,7 @@ private:
     // frame buffer
     uint32_t *_framebuffer;
 
-    // DIB Section (for GDI text rendering)
+    // DIB Section (for scalable font text rendering on current backend)
     HDC _memDC;
     HBITMAP _dibSection;
     HBITMAP _oldBmp;
@@ -1661,28 +1667,35 @@ void GameLib::DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...)
 
 
 //=====================================================================
-// GDI Text Rendering (system fonts, Chinese support)
+// Font Text Rendering (current Windows backend: GDI)
 //=====================================================================
 
-void GameLib::DrawTextGDI(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize)
+static wchar_t *_gamelib_utf8_to_wide(const char *text, int *outLen)
 {
-    if (!_memDC || !text) return;
+    if (outLen) *outLen = 0;
+    if (!text) return NULL;
 
-    // Convert UTF-8 to wide string (query required size first)
-    int wtextLen = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
-    if (wtextLen <= 0) return;
-    wchar_t *wtext = (wchar_t*)malloc(wtextLen * sizeof(wchar_t));
-    if (!wtext) return;
-    MultiByteToWideChar(CP_UTF8, 0, text, -1, wtext, wtextLen);
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+    if (wideLen <= 0) return NULL;
 
-    // Convert font name to wide string
-    int wfontLen = MultiByteToWideChar(CP_UTF8, 0, fontName, -1, NULL, 0);
-    if (wfontLen <= 0) { free(wtext); return; }
-    wchar_t *wfont = (wchar_t*)malloc(wfontLen * sizeof(wchar_t));
-    if (!wfont) { free(wtext); return; }
-    MultiByteToWideChar(CP_UTF8, 0, fontName, -1, wfont, wfontLen);
+    wchar_t *wideText = (wchar_t*)malloc((size_t)wideLen * sizeof(wchar_t));
+    if (!wideText) return NULL;
 
-    // Create font
+    if (MultiByteToWideChar(CP_UTF8, 0, text, -1, wideText, wideLen) <= 0) {
+        free(wideText);
+        return NULL;
+    }
+
+    if (outLen) *outLen = wideLen - 1;
+    return wideText;
+}
+
+static HFONT _gamelib_create_font_utf8(const char *fontName, int fontSize)
+{
+    const char *name = fontName ? fontName : GAMELIB_DEFAULT_FONT_NAME;
+    wchar_t *wideFont = _gamelib_utf8_to_wide(name, NULL);
+    if (!wideFont) return NULL;
+
     HFONT font = _gl_CreateFontW(
         fontSize, 0, 0, 0, FW_NORMAL,
         FALSE, FALSE, FALSE,
@@ -1690,7 +1703,61 @@ void GameLib::DrawTextGDI(int x, int y, const char *text, uint32_t color, const 
         CLIP_DEFAULT_PRECIS,
         ANTIALIASED_QUALITY,
         DEFAULT_PITCH,
-        wfont);
+        wideFont);
+
+    free(wideFont);
+    return font;
+}
+
+static void _gamelib_measure_font_text(HDC dc, const wchar_t *wideText, int *outWidth, int *outHeight)
+{
+    if (outWidth) *outWidth = 0;
+    if (outHeight) *outHeight = 0;
+    if (!dc || !wideText || !*wideText || !_gl_GetTextExtentPoint32W) return;
+
+    SIZE sample = { 0, 0 };
+    _gl_GetTextExtentPoint32W(dc, L"Hg", 2, &sample);
+    int lineHeight = sample.cy;
+
+    int maxWidth = 0;
+    int totalHeight = 0;
+    const wchar_t *lineStart = wideText;
+    const wchar_t *cursor = wideText;
+
+    for (;;) {
+        if (*cursor == L'\n' || *cursor == L'\0') {
+            int lineLen = (int)(cursor - lineStart);
+            if (lineLen > 0 && lineStart[lineLen - 1] == L'\r') {
+                lineLen--;
+            }
+
+            SIZE lineSize = { 0, 0 };
+            if (lineLen > 0) {
+                _gl_GetTextExtentPoint32W(dc, lineStart, lineLen, &lineSize);
+                if (lineSize.cx > maxWidth) maxWidth = lineSize.cx;
+                if (lineHeight <= 0) lineHeight = lineSize.cy;
+            }
+
+            if (lineHeight > 0) totalHeight += lineHeight;
+
+            if (*cursor == L'\0') break;
+            lineStart = cursor + 1;
+        }
+        cursor++;
+    }
+
+    if (outWidth) *outWidth = maxWidth;
+    if (outHeight) *outHeight = totalHeight;
+}
+
+void GameLib::DrawTextFont(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize)
+{
+    if (!_memDC || !text || fontSize <= 0) return;
+
+    wchar_t *wideText = _gamelib_utf8_to_wide(text, NULL);
+    if (!wideText) return;
+
+    HFONT font = _gamelib_create_font_utf8(fontName, fontSize);
 
     if (font) {
         HFONT oldFont = (HFONT)_gl_SelectObject(_memDC, font);
@@ -1700,20 +1767,40 @@ void GameLib::DrawTextGDI(int x, int y, const char *text, uint32_t color, const 
         _gl_SetTextColor(_memDC, cref);
         _gl_SetBkMode(_memDC, 1);  // TRANSPARENT
 
-        // Draw text
-        _gl_TextOutW(_memDC, x, y, wtext, wtextLen - 1);
+        // Draw text line by line so '\n' works the same way as DrawText.
+        SIZE sample = { 0, 0 };
+        _gl_GetTextExtentPoint32W(_memDC, L"Hg", 2, &sample);
+        int lineHeight = sample.cy > 0 ? sample.cy : fontSize;
+        int penY = y;
+        const wchar_t *lineStart = wideText;
+        const wchar_t *cursor = wideText;
 
-        // Flush GDI to ensure writes are visible in the framebuffer
+        for (;;) {
+            if (*cursor == L'\n' || *cursor == L'\0') {
+                int lineLen = (int)(cursor - lineStart);
+                if (lineLen > 0 && lineStart[lineLen - 1] == L'\r') {
+                    lineLen--;
+                }
+                if (lineLen > 0) {
+                    _gl_TextOutW(_memDC, x, penY, lineStart, lineLen);
+                }
+                penY += lineHeight;
+                if (*cursor == L'\0') break;
+                lineStart = cursor + 1;
+            }
+            cursor++;
+        }
+
+        // Flush GDI to ensure writes are visible in the framebuffer.
         if (_gl_GdiFlush) _gl_GdiFlush();
 
-        // Fix alpha channel: GDI TextOut writes alpha=0, which makes text
-        // invisible to alpha-aware drawing. Scan the text bounding box and
-        // set alpha=0xFF for any pixel that GDI modified.
+        // GDI TextOut writes alpha=0. Repair the text bounding box to keep
+        // the framebuffer consistent for later alpha-aware drawing.
         if (_framebuffer) {
-            SIZE sz = { 0, 0 };
-            _gl_GetTextExtentPoint32W(_memDC, wtext, wtextLen - 1, &sz);
             int x0 = x, y0 = y;
-            int x1 = x + sz.cx, y1 = y + sz.cy;
+            int textWidth = 0, textHeight = 0;
+            _gamelib_measure_font_text(_memDC, wideText, &textWidth, &textHeight);
+            int x1 = x + textWidth, y1 = y + textHeight;
             if (x0 < 0) x0 = 0;
             if (y0 < 0) y0 = 0;
             if (x1 > _width) x1 = _width;
@@ -1734,60 +1821,64 @@ void GameLib::DrawTextGDI(int x, int y, const char *text, uint32_t color, const 
         _gl_DeleteObject(font);
     }
 
-    free(wtext);
-    free(wfont);
+    free(wideText);
 }
 
-void GameLib::DrawTextGDI(int x, int y, const char *text, uint32_t color, int fontSize)
+void GameLib::DrawTextFont(int x, int y, const char *text, uint32_t color, int fontSize)
 {
-    // Default font: Microsoft YaHei for Chinese support, fallback to system default
-    DrawTextGDI(x, y, text, color, "Microsoft YaHei", fontSize);
+    DrawTextFont(x, y, text, color, GAMELIB_DEFAULT_FONT_NAME, fontSize);
 }
 
-int GameLib::GetTextWidthGDI(const char *text, const char *fontName, int fontSize)
+int GameLib::GetTextWidthFont(const char *text, const char *fontName, int fontSize)
 {
-    if (!_memDC || !text) return 0;
+    if (!_memDC || !text || fontSize <= 0) return 0;
 
-    // Convert UTF-8 to wide string (query required size first)
-    int wtextLen = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
-    if (wtextLen <= 0) return 0;
-    wchar_t *wtext = (wchar_t*)malloc(wtextLen * sizeof(wchar_t));
-    if (!wtext) return 0;
-    MultiByteToWideChar(CP_UTF8, 0, text, -1, wtext, wtextLen);
+    wchar_t *wideText = _gamelib_utf8_to_wide(text, NULL);
+    if (!wideText) return 0;
 
-    // Convert font name to wide string
-    int wfontLen = MultiByteToWideChar(CP_UTF8, 0, fontName, -1, NULL, 0);
-    if (wfontLen <= 0) { free(wtext); return 0; }
-    wchar_t *wfont = (wchar_t*)malloc(wfontLen * sizeof(wchar_t));
-    if (!wfont) { free(wtext); return 0; }
-    MultiByteToWideChar(CP_UTF8, 0, fontName, -1, wfont, wfontLen);
+    HFONT font = _gamelib_create_font_utf8(fontName, fontSize);
 
-    // Create font
-    HFONT font = _gl_CreateFontW(
-        fontSize, 0, 0, 0, FW_NORMAL,
-        FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-        CLIP_DEFAULT_PRECIS,
-        ANTIALIASED_QUALITY,
-        DEFAULT_PITCH,
-        wfont);
-
-    SIZE size = {0, 0};
+    int width = 0;
     if (font) {
         HFONT oldFont = (HFONT)_gl_SelectObject(_memDC, font);
-        _gl_GetTextExtentPoint32W(_memDC, wtext, wtextLen - 1, &size);
+        _gamelib_measure_font_text(_memDC, wideText, &width, NULL);
         _gl_SelectObject(_memDC, oldFont);
         _gl_DeleteObject(font);
     }
 
-    free(wtext);
-    free(wfont);
-    return (int)size.cx;
+    free(wideText);
+    return width;
 }
 
-int GameLib::GetTextHeightGDI(int fontSize)
+int GameLib::GetTextWidthFont(const char *text, int fontSize)
 {
-    return fontSize;  // Approximate height
+    return GetTextWidthFont(text, GAMELIB_DEFAULT_FONT_NAME, fontSize);
+}
+
+int GameLib::GetTextHeightFont(const char *text, const char *fontName, int fontSize)
+{
+    if (!_memDC || !text || fontSize <= 0) return 0;
+
+    wchar_t *wideText = _gamelib_utf8_to_wide(text, NULL);
+    if (!wideText) return 0;
+
+    HFONT font = _gamelib_create_font_utf8(fontName, fontSize);
+
+    int height = 0;
+    if (font) {
+        HFONT oldFont = (HFONT)_gl_SelectObject(_memDC, font);
+        _gamelib_measure_font_text(_memDC, wideText, NULL, &height);
+        _gl_SelectObject(_memDC, oldFont);
+        _gl_DeleteObject(font);
+    }
+
+    free(wideText);
+    return height;
+}
+
+int GameLib::GetTextHeightFont(const char *text, int fontSize)
+{
+    return GetTextHeightFont(text, GAMELIB_DEFAULT_FONT_NAME, fontSize);
 }
 
 

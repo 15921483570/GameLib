@@ -37,6 +37,9 @@
 | `DrawNumber(x, y, number, color)`         | 绘制整数   |
 | `DrawTextScale(x, y, text, color, scale)` | 放大文字   |
 | `DrawPrintf(x, y, color, fmt, ...)`       | 格式化输出 |
+| `DrawTextFont(x, y, text, color, size)`   | 用默认字体绘制文字 |
+| `DrawTextFont(x, y, text, color, font, size)` | 用指定字体绘制文字 |
+| `GetTextWidthFont(...)` / `GetTextHeightFont(...)` | 测量字体文字尺寸 |
 
 ### 精灵
 

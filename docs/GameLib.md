@@ -383,26 +383,31 @@ static bool _srandDone; // srand 是否已初始化
 - 内部使用 `vsnprintf`（1024 字节缓冲），格式化后调用 `DrawText` 绘制
 - 方便在屏幕上显示变量值、分数、调试信息等
 
-### 6.5 GDI 文字渲染（系统字体，支持中文）
+### 6.5 字体文字渲染（当前 Windows 后端用 GDI 实现）
 
-#### `void DrawTextGDI(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize)`
-- 使用 GDI 系统字体渲染文字，支持中文、日文等多字节字符
+#### `void DrawTextFont(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize)`
+- 使用可缩放字体渲染文字；当前 Windows 版本内部用 GDI 实现
 - `fontName`: 字体名称，如 "Microsoft YaHei"、"SimHei"、"Arial" 等
 - `fontSize`: 字体大小（像素）
 - 文字背景透明，支持 UTF-8 编码
+- 支持 `\n` 多行输出
 
-#### `void DrawTextGDI(int x, int y, const char *text, uint32_t color, int fontSize)`
-- 简化版本，使用默认字体 "Microsoft YaHei"（支持中文）
+#### `void DrawTextFont(int x, int y, const char *text, uint32_t color, int fontSize)`
+- 简化版本，使用默认字体 `GAMELIB_DEFAULT_FONT_NAME`
 - 适合快速输出中文文字
 
-#### `int GetTextWidthGDI(const char *text, const char *fontName, int fontSize)`
+#### `int GetTextWidthFont(const char *text, const char *fontName, int fontSize)`
 - 获取文字在指定字体下的宽度（像素）
 - 用于计算文字对齐、布局等
 
-#### `int GetTextHeightGDI(int fontSize)`
-- 获取字体高度的近似值（返回 fontSize）
+#### `int GetTextHeightFont(const char *text, const char *fontName, int fontSize)`
+- 获取文字在指定字体下的高度（像素）
+- 支持多行文本高度计算
 
-**注意**: GDI 文字渲染使用系统字体抗锯齿，效果比内嵌 8x8 字体更平滑，但性能略低。对于大量文字或高性能需求场景，建议使用内嵌字体。
+#### `int GetTextWidthFont(const char *text, int fontSize)` / `int GetTextHeightFont(const char *text, int fontSize)`
+- 使用默认字体的简化测量版本
+
+**注意**: 字体文字渲染当前在 Windows 后端使用 GDI 抗锯齿，效果比内嵌 8x8 字体更平滑，但性能略低。对于大量文字或高性能需求场景，建议使用内嵌字体。
 
 ### 6.6 精灵系统
 
@@ -658,6 +663,8 @@ int main() {
 4. **音频增强** — 多通道音效、音量控制
 5. **示例游戏 Demo** — 编写打砖块、太空射击等示例
 
+更细的接口演进建议见：`docs/GameLib-v1.1-Proposal.md`
+
 ---
 
 ## 12. 技术决策备忘
@@ -694,11 +701,11 @@ int main() {
 | `DrawTilemap` 预计算可见瓦片范围 | 大地图（如 200×50）时只遍历屏幕内的瓦片，保证绘制性能 |
 | `DrawTilemap` 三路循环展开 | 与 `DrawSpriteEx` 一致的优化策略，避免逐像素 flag 分支 |
 | Tilemap 不管理 tileset 精灵的生命周期 | `FreeTilemap` 只释放 tiles 数组，tileset 精灵由用户通过 `FreeSprite` 控制 |
-| DIB Section + 常备 DC | 创建 `CreateDIBSection` 并选入常备 `_memDC`，帧缓冲内存由 DIB Section 管理，支持 GDI 文字输出 |
-| `DrawTextGDI` 动态创建字体 | 每次调用创建/销毁字体，适合少量文字；若需大量文字可后续添加字体缓存 |
+| DIB Section + 常备 DC | 创建 `CreateDIBSection` 并选入常备 `_memDC`，帧缓冲内存由 DIB Section 管理，支持当前 Windows 后端的字体文字输出 |
+| `DrawTextFont` 动态创建字体 | 每次调用创建/销毁字体，适合少量文字；若需大量文字可后续添加字体缓存 |
 | `BitBlt` 替代 `SetDIBitsToDevice` | DIB Section 场景下 `BitBlt` 更高效，且代码更简洁 |
 | GDI 文字函数动态加载 | 所有 GDI 函数通过 `LoadLibrary` + `GetProcAddress` 加载，保持只需 `-mwindows` 编译 |
-| `DrawTextGDI` alpha 修复 | GDI `TextOutW` 写入 alpha=0；绘制后 `GdiFlush()` + 扫描文字 bounding box，对 alpha=0 且 RGB!=0 的像素恢复 alpha=0xFF |
+| `DrawTextFont` alpha 修复 | GDI `TextOutW` 写入 alpha=0；绘制后 `GdiFlush()` + 扫描文字 bounding box，对 alpha=0 且 RGB!=0 的像素恢复 alpha=0xFF |
 | 构造函数加载核心 API | `gdi32.dll`/`winmm.dll` 是 Windows 系统 DLL，实际不会加载失败；构造时加载消除了"API 未加载"状态，后续方法无需 NULL 检查 |
 | 构造失败 `MessageBoxA` + `exit(1)` | 面向初学者的库，构造失败（系统 DLL 无法加载）是灾难性的，直接终止比返回错误码更友好 |
 | 精灵/帧缓冲尺寸限制 16384 | 防止 `width * height * 4` 整数溢出（16384 × 16384 × 4 = 1 GB，在 `size_t` 范围内） |
