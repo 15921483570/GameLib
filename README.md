@@ -2,8 +2,6 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![C++ Standard](https://img.shields.io/badge/C%2B%2B-11-blue.svg)](https://en.cppreference.com/w/cpp/11) [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078d4.svg)](https://github.com/skywind3000/GameLib) [![Header Only](https://img.shields.io/badge/Header--Only-single%20file-green.svg)](GameLib.h) [![No Dependencies](https://img.shields.io/badge/Dependencies-zero-brightgreen.svg)](https://github.com/skywind3000/GameLib) [![GCC 4.9+](https://img.shields.io/badge/GCC-4.9%2B-orange.svg?logo=gnu)](https://gcc.gnu.org/)
 
-[README in English](README.en.md)
-
 给 C++ 初学者的游戏开发库，只有一个头文件，无需安装任何东西，写句 `include "GameLib.h"` 就能开始做游戏。
 
 很多 C++ 初学者反馈，学 C++ 不像其他语言三两行就能出个东西，最痛苦的体验是学了好几周，能做的事情还是在黑窗口里 `cout` 一行字。离 "做一个真正的程序" 遥不可及，正反馈几乎为零。想用 SDL、SFML？光配环境、链接库就够折腾半天，还没写第一行游戏逻辑就已经想放弃了。
