@@ -381,14 +381,17 @@ static bool _srandDone; // srand 是否已初始化
 - 填充矩形（带裁剪，直接写帧缓冲；`_framebuffer` 为 NULL 时直接返回）
 
 #### `void DrawCircle(int cx, int cy, int r, uint32_t color)`
-- **中点圆算法**，绘制 8 个对称点
+- **中点圆算法**，按唯一对称点输出轮廓
+- 对 `x == 0`、`x == y` 等退化对称点会去重，避免半透明颜色在边界点被重复混合
 
 #### `void FillCircle(int cx, int cy, int r, uint32_t color)`
-- **中点圆算法 + 水平线填充**（4 条水平线/每步）
+- 复用椭圆扫描线填充路径（`rx == ry`），每个 y 只写一条水平线
+- 这样半透明颜色不会因为重复覆盖同一扫描线而出现额外加深
 
 #### `void DrawEllipse(int cx, int cy, int rx, int ry, uint32_t color)`
 - 绘制椭圆边框，参数分别为中心点和横/纵半径
-- 使用基于椭圆方程的对称采样实现，保持与现有软件帧缓冲绘制路径一致
+- 使用 midpoint ellipse 风格的分区迭代，并按唯一对称点输出轮廓
+- 避免旧的双向采样路径在半透明颜色下对部分边界点重复落笔
 - 退化情况（半径为 0）会自动回退为点或直线
 
 #### `void FillEllipse(int cx, int cy, int rx, int ry, uint32_t color)`

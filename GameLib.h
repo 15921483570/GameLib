@@ -696,6 +696,43 @@ static void _gamelib_blend_pixel(uint32_t *dst, uint32_t src)
     *dst = _gamelib_alpha_blend(*dst, src);
 }
 
+static void _gamelib_plot_circle_points_unique(GameLib *game,
+                                               int cx, int cy, int x, int y,
+                                               uint32_t color)
+{
+    if (!game) return;
+
+    game->SetPixel(cx + x, cy + y, color);
+    if (x != 0) game->SetPixel(cx - x, cy + y, color);
+    if (y != 0) {
+        game->SetPixel(cx + x, cy - y, color);
+        if (x != 0) game->SetPixel(cx - x, cy - y, color);
+    }
+
+    if (x == y) return;
+
+    game->SetPixel(cx + y, cy + x, color);
+    game->SetPixel(cx - y, cy + x, color);
+    if (x != 0) {
+        game->SetPixel(cx + y, cy - x, color);
+        game->SetPixel(cx - y, cy - x, color);
+    }
+}
+
+static void _gamelib_plot_ellipse_points_unique(GameLib *game,
+                                                int cx, int cy, int x, int y,
+                                                uint32_t color)
+{
+    if (!game) return;
+
+    game->SetPixel(cx + x, cy + y, color);
+    if (x != 0) game->SetPixel(cx - x, cy + y, color);
+    if (y != 0) {
+        game->SetPixel(cx + x, cy - y, color);
+        if (x != 0) game->SetPixel(cx - x, cy - y, color);
+    }
+}
+
 static int _gamelib_load_apis()
 {
     if (_gamelib_apis_loaded) return 0;
@@ -1750,14 +1787,7 @@ void GameLib::DrawCircle(int cx, int cy, int r, uint32_t color)
     int x = 0, y = r;
     int d = 1 - r;
     while (x <= y) {
-        SetPixel(cx + x, cy + y, color);
-        SetPixel(cx - x, cy + y, color);
-        SetPixel(cx + x, cy - y, color);
-        SetPixel(cx - x, cy - y, color);
-        SetPixel(cx + y, cy + x, color);
-        SetPixel(cx - y, cy + x, color);
-        SetPixel(cx + y, cy - x, color);
-        SetPixel(cx - y, cy - x, color);
+        _gamelib_plot_circle_points_unique(this, cx, cy, x, y, color);
         if (d < 0) {
             d += 2 * x + 3;
         } else {
@@ -1774,22 +1804,7 @@ void GameLib::DrawCircle(int cx, int cy, int r, uint32_t color)
 //---------------------------------------------------------------------
 void GameLib::FillCircle(int cx, int cy, int r, uint32_t color)
 {
-    if (r < 0) return;
-    int x = 0, y = r;
-    int d = 1 - r;
-    while (x <= y) {
-        _DrawHLine(cx - x, cx + x, cy + y, color);
-        _DrawHLine(cx - x, cx + x, cy - y, color);
-        _DrawHLine(cx - y, cx + y, cy + x, color);
-        _DrawHLine(cx - y, cx + y, cy - x, color);
-        if (d < 0) {
-            d += 2 * x + 3;
-        } else {
-            d += 2 * (x - y) + 5;
-            y--;
-        }
-        x++;
-    }
+    FillEllipse(cx, cy, r, r, color);
 }
 
 void GameLib::DrawEllipse(int cx, int cy, int rx, int ry, uint32_t color)
@@ -1808,23 +1823,43 @@ void GameLib::DrawEllipse(int cx, int cy, int rx, int ry, uint32_t color)
         return;
     }
 
-    double rx2 = (double)rx * (double)rx;
-    double ry2 = (double)ry * (double)ry;
+    int64_t rx2 = (int64_t)rx * (int64_t)rx;
+    int64_t ry2 = (int64_t)ry * (int64_t)ry;
+    int64_t twoRx2 = 2 * rx2;
+    int64_t twoRy2 = 2 * ry2;
+    int64_t x = 0;
+    int64_t y = ry;
+    int64_t px = 0;
+    int64_t py = twoRx2 * y;
 
-    for (int y = -ry; y <= ry; y++) {
-        double ratio = 1.0 - ((double)y * (double)y) / ry2;
-        if (ratio < 0.0) ratio = 0.0;
-        int x = _gamelib_round_to_int(sqrt(ratio) * (double)rx);
-        SetPixel(cx - x, cy + y, color);
-        SetPixel(cx + x, cy + y, color);
+    double p = (double)ry2 - (double)rx2 * (double)ry + 0.25 * (double)rx2;
+    while (px < py) {
+        _gamelib_plot_ellipse_points_unique(this, cx, cy, (int)x, (int)y, color);
+        x++;
+        px += twoRy2;
+        if (p < 0.0) {
+            p += (double)ry2 + (double)px;
+        } else {
+            y--;
+            py -= twoRx2;
+            p += (double)ry2 + (double)px - (double)py;
+        }
     }
 
-    for (int x = -rx; x <= rx; x++) {
-        double ratio = 1.0 - ((double)x * (double)x) / rx2;
-        if (ratio < 0.0) ratio = 0.0;
-        int y = _gamelib_round_to_int(sqrt(ratio) * (double)ry);
-        SetPixel(cx + x, cy - y, color);
-        SetPixel(cx + x, cy + y, color);
+    p = (double)ry2 * ((double)x + 0.5) * ((double)x + 0.5)
+      + (double)rx2 * ((double)y - 1.0) * ((double)y - 1.0)
+      - (double)rx2 * (double)ry2;
+    while (y >= 0) {
+        _gamelib_plot_ellipse_points_unique(this, cx, cy, (int)x, (int)y, color);
+        y--;
+        py -= twoRx2;
+        if (p > 0.0) {
+            p += (double)rx2 - (double)py;
+        } else {
+            x++;
+            px += twoRy2;
+            p += (double)rx2 - (double)py + (double)px;
+        }
     }
 }
 
