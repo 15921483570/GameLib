@@ -45,7 +45,7 @@ int main()
 g++ main.cpp -o game.exe
 ```
 
-不需要加任何编译参数，很多 C++ 初学者连命令行编译都不懂，只会直接在 Dev-C++ / CodeBlocks 里点编译+运行，让他们像用其他库一样添加一些类似 -ld3d9x 之类编译参数，可能直接就劝退一大群人，因此这个库完全使用默认编译参数，所有依赖都是动态库自己手工加载。
+不需要加任何编译参数，很多 C++ 初学者连命令行编译都不懂，只会直接在 Dev-C++ 里点编译+运行，让他们像用其他库一样添加一些类似 `-ld3d9x` 之类编译参数，可能直接就劝退一大群人，因此这个库完全使用默认编译参数，所有依赖都是动态库自己手工加载。
 
 ![](https://skywind3000.github.io/images/p/gamelib/demo1.png)
 
@@ -312,8 +312,14 @@ int main()
 编译任意示例：
 
 ```bash
-g++ -o demo.exe examples/01_hello.cpp -mwindows
+g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 ```
+
+运行：
+
+![](https://skywind3000.github.io/images/p/gamelib/shapes.png)
+
+即可。
 
 ### 入门基础
 
