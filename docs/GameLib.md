@@ -5,11 +5,11 @@
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
 **文件位置**: `GameLib.h`
-**当前版本**: `1.4.0`
-**当前行数**: 3054 行
+**当前版本**: `1.4.1`
+**当前行数**: 3040 行
 **最后修改**: 2026/04/15
 
-当前 `1.4.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则，以及最近补上的 `Open()` 重开清理、Tilemap `tileId` 校验与 `DrawTilemap()` 绘制前按当前 tileset 尺寸刷新元数据的安全语义。
+当前 `1.4.1` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则，以及最近调整后的 Tilemap 语义：不再缓存 `tilesetTileCount`，允许地图数据保存超出当前 tileset 范围的非负 `tileId`，并在 `DrawTilemap()` 绘制时按 live tileset 尺寸跳过不可用瓦片。
 
 ---
 
@@ -220,7 +220,6 @@ struct GameTilemap {
     int tileSize;       // 瓦片边长（像素）
     int tilesetId;      // tileset 精灵 ID
     int tilesetCols;    // tileset 每行有多少个瓦片（自动计算）
-  int tilesetTileCount; // tileset 当前可用瓦片总数缓存（用于 tileId 校验）
     int *tiles;         // cols * rows 的瓦片 ID 数组（-1 = 空，malloc 分配）
     bool used;          // 槽位是否被使用
 };
@@ -647,7 +646,7 @@ static bool _srandDone; // srand 是否已初始化
 - `tileSize`：瓦片边长（像素），tileset 精灵按此尺寸切分为格子
 - `tilesetId`：通过 `LoadSprite` 或 `CreateSprite` 加载的精灵 ID，作为瓦片图集
 - tileset 中瓦片编号从 0 开始，从左到右、从上到下排列
-- 自动计算并缓存 `tilesetCols = spriteWidth / tileSize` 与 `tilesetTileCount`
+- 自动计算并缓存 `tilesetCols = spriteWidth / tileSize`，并确认当前 tileset 至少能切出 1 块完整瓦片
 - 若 tileset 在当前 `tileSize` 下切不出任何完整瓦片，则创建失败
 - 所有格子初始化为 -1（空，不绘制）
 
@@ -666,19 +665,21 @@ static bool _srandDone; // srand 是否已初始化
 - 某一行超过 `cols` 的数据会忽略，不足 `cols` 的剩余格子保留为 `-1`
 - 文件超过 `rows` 的多余数据行会忽略；若不足 `rows` 行，缺失行保留为 `-1`
 - 不从文件中读取 tileset 信息，调用者必须显式提供 `tilesetId`
-- 读到超出当前 tileset 可用范围的 `tileId` 时返回 `-1`，不会保留半成品地图
+- 只接受 `-1` 或非负 `tileId`；读到小于 `-1` 的值时返回 `-1`，不会保留半成品地图
+- 超出当前 tileset 可用范围的非负 `tileId` 会原样保留，后续绘制时自动跳过
 - 在读到非整数 token 等非法内容时返回 `-1`，不会保留半成品地图
 
 #### `void FreeTilemap(int mapId)`
 - 释放地图的 tiles 数组内存，标记槽位为未使用
-- 同时清空 `tilesetId` / `tilesetCols` / `tilesetTileCount` 等缓存元数据
+- 同时清空 `tilesetId` / `tilesetCols` 等缓存元数据
 - 不释放 tileset 精灵（由用户通过 `FreeSprite` 管理）
 
 #### `void SetTile(int mapId, int col, int row, int tileId)`
 - 设置 (col, row) 处的瓦片编号
 - `tileId >= 0`：对应 tileset 中的第几块瓦片
 - `tileId = -1`：空格，不绘制
-- 若 `tileId` 超出当前 tileset 可用范围，则忽略本次写入
+- 若 `tileId` 超出当前 tileset 可用范围，仍会写入；后续 `DrawTilemap()` 会按当前 tileset 尺寸自动跳过不可绘制格子
+- 若 `tileId < -1`，则忽略本次写入
 
 #### `int GetTile(int mapId, int col, int row) const`
 - 获取 (col, row) 处的瓦片编号
@@ -703,12 +704,14 @@ static bool _srandDone; // srand 是否已初始化
 #### `void FillTileRect(int mapId, int col, int row, int cols, int rows, int tileId)`
 - 用同一个 `tileId` 批量填充一块矩形瓦片区域
 - 会自动裁剪到地图边界，适合快速生成地面、平台、房间块
-- 若 `tileId` 非法，则整次填充直接忽略
+- 若 `tileId` 超出当前 tileset 可用范围，仍会照常写入；绘制时自动跳过不可绘制格子
+- 若 `tileId < -1`，则整次填充直接忽略
 
 #### `void ClearTilemap(int mapId, int tileId = -1)`
 - 将整张地图填充为同一个瓦片编号
 - 默认值 `-1` 表示清空整张地图
-- 若传入的 `tileId` 非法，则忽略本次清空请求
+- 若传入的 `tileId` 超出当前 tileset 可用范围，仍会照常写入；绘制时自动跳过不可绘制格子
+- 若传入的 `tileId < -1`，则忽略本次清空请求
 
 #### `void DrawTilemap(int mapId, int x, int y, int flags = 0)`
 - 绘制瓦片地图到帧缓冲
@@ -720,7 +723,8 @@ static bool _srandDone; // srand 是否已初始化
   - `SPRITE_ALPHA | SPRITE_COLORKEY` — 可组合使用
 - 如果瓦片图集依赖透明孔洞，应传入 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`
 - **性能优化**：只绘制屏幕可见范围内的瓦片（自动计算可见列/行范围），不遍历整张地图
-- 绘制前会按当前 tileset sprite 的实际尺寸刷新 `tilesetCols` 与 `tilesetTileCount`；即使同一个 sprite 槽位被释放后重新装入更小资源，也不会继续信任旧缓存
+- 绘制前会按当前 tileset sprite 的实际尺寸即时计算可用瓦片总数；即使同一个 sprite 槽位被释放后重新装入更小资源，也不会访问越界像素
+- `tileId < 0` 或超出当前可用瓦片总数的格子会直接跳过，不参与绘制
 - 每个瓦片做像素级边缘裁剪，处理屏幕边界的半瓦片
 - 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 `memcpy`；其他情况复用 `_DrawSpriteAreaFast`
 
@@ -765,7 +769,6 @@ static bool _srandDone; // srand 是否已初始化
 | `void _DrawSpriteAreaScaled(...)` | 缩放绘制路径，使用最近邻采样并保持翻转、Color Key、Alpha 语义 |
 | `int _AllocTilemapSlot()` | 在 `_tilemaps` 向量中找空闲槽位或追加新槽位 |
 | `int _GetTilesetTileCount(int tilesetId, int tileSize) const` | 根据当前 tileset sprite 尺寸计算可用瓦片总数 |
-| `bool _IsValidTileId(int mapId, int tileId) const` | 检查 `tileId` 是否为 `-1` 或落在当前 tileset 可用范围内 |
 | `static int _gamelib_floor_div(int value, int divisor)` | 向下取整整数除法，供负坐标的 Tilemap 像素到瓦片坐标换算使用 |
 | `static int _gamelib_round_to_int(double value)` | 将浮点值按四舍五入转为整数，供椭圆采样使用 |
 | `static uint32_t _gamelib_alpha_blend(uint32_t dst, uint32_t src)` | 统一的 ARGB source-over 混色 helper |
@@ -886,8 +889,8 @@ int main() {
 | `unsigned int` 替代 `UINT32` | GCC 4.9.2 的 MinGW 头文件可能未定义 `UINT32` |
 | Tilemap tiles 用 `int*`（malloc 分配）管理 | 与精灵像素内存管理风格一致，析构时自动释放 |
 | Tilemap 瓦片 ID 用 -1 表示空 | 0 是有效的 tileset 第一块瓦片，-1 不会与任何瓦片冲突 |
-| Tilemap 在创建时缓存 `tilesetCols` / `tilesetTileCount`，绘制前再按当前 sprite 尺寸刷新 | 校验路径需要低开销，但绘制路径不能信任 sprite 槽位复用后过期的旧缓存 |
-| Tilemap 载入/写入时校验 `tileId` | 尽早拒绝越界瓦片，避免后续 `DrawTilemap` 访问 tileset 源像素越界 |
+| Tilemap 不再缓存 `tilesetTileCount`，`DrawTilemap()` 统一按当前 sprite 尺寸即时计算 `tileCount` | 避免维护多份上限状态，同时继续以 live sprite 尺寸保证绘制路径内存安全 |
+| Tilemap 载入/写入允许保留超出当前 tileset 范围的非负 `tileId` | 地图数据可以先于 tileset 扩容存在；真正不可绘制的格子统一在 `DrawTilemap()` 阶段跳过 |
 | `DrawTilemap` 预计算可见瓦片范围 | 大地图（如 200×50）时只遍历屏幕内的瓦片，保证绘制性能 |
 | `DrawTilemap` 复用非缩放精灵快路径 | 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 memcpy；其他情况转到 `_DrawSpriteAreaFast`，避免保留重复实现 |
 | Tilemap 不管理 tileset 精灵的生命周期 | `FreeTilemap` 只释放 tiles 数组，tileset 精灵由用户通过 `FreeSprite` 控制 |

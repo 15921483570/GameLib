@@ -129,7 +129,7 @@
 | `ClearTilemap(mapId, tileId = -1)`               | 用指定瓦片填满整张地图（默认 `-1` 为清空） |
 | `DrawTilemap(mapId, x, y, flags)`                | 绘制地图（支持 ColorKey/Alpha） |
 
-tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 默认走不透明快路径，只绘制屏幕可见瓦片；传 `(-cameraX, -cameraY)` 即可实现卷轴，如需透明孔洞请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。`.glm` 是纯文本格式：第一行固定 `GLM1`，第二行是 `tileSize rows cols`，后续每行一行瓦片数据，使用空格或 Tab 分隔。载入时每行超过 `cols` 的数据会忽略，不足的部分补 `-1`；超过 `rows` 的行忽略，不足的行补 `-1`。文件里不记录 tileset 路径，载入时由调用者提供 `tilesetId`。
+tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 默认走不透明快路径，只绘制屏幕可见瓦片；传 `(-cameraX, -cameraY)` 即可实现卷轴，如需透明孔洞请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。Tilemap 数据允许保存超出当前 tileset 范围的非负 `tileId`；`SetTile` / `FillTileRect` / `ClearTilemap` / `LoadTilemap` 不会因为它大于当前 tileset 而拒绝，`DrawTilemap` 会在绘制时按当前 tileset 实际尺寸自动跳过这些格子。`-1` 仍是唯一合法的空瓦片值，其他负值仍视为无效。`.glm` 是纯文本格式：第一行固定 `GLM1`，第二行是 `tileSize rows cols`，后续每行一行瓦片数据，使用空格或 Tab 分隔。载入时每行超过 `cols` 的数据会忽略，不足的部分补 `-1`；超过 `rows` 的行忽略，不足的行补 `-1`。文件里不记录 tileset 路径，载入时由调用者提供 `tilesetId`。
 
 消息框按钮类型：`MESSAGEBOX_OK`、`MESSAGEBOX_YESNO`。返回值：`MESSAGEBOX_RESULT_OK`、`MESSAGEBOX_RESULT_YES`、`MESSAGEBOX_RESULT_NO`。
 

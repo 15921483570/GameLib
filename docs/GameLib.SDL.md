@@ -4,7 +4,7 @@
 
 `GameLib.SDL.h` 是 `GameLib.h` 的 **独立 SDL 版产品线**，目标是在 **Windows / macOS / Linux** 上提供尽量一致的教学型 2D 游戏开发体验。
 
-**当前版本**: `0.4.0`
+**当前版本**: `0.4.1`
 
 它不是对现有 `GameLib.h` 的直接替换，也不是在原头文件中塞入大量 `#ifdef SDL` 的混合版本，而是一份 **单独维护的跨平台单头文件**。其公开使用方式尽量保持与 `GameLib.h` 一致：
 
@@ -846,8 +846,8 @@ static bool _srandDone;
 说明：
 
 - 这里的 `GameFontCacheEntry` 可定义为 `{ std::string key; TTF_Font *font; }`
-- 当前实现中的 `GameTilemap` 至少保存 `cols`、`rows`、`tileSize`、`tilesetId`、`tilesetCols`、`tilesetTileCount`、`tiles`、`used`。
-- 其中 `tilesetTileCount` 用于 `CreateTilemap` / `LoadTilemap` / `SetTile` / `FillTileRect` / `ClearTilemap` 的快速合法性校验；但 `DrawTilemap()` 在真正访问像素前，仍会按当前 tileset sprite 的实际尺寸刷新 `tilesetCols` 和 `tilesetTileCount`，避免 sprite 槽位复用后沿用过期缓存。
+- 当前实现中的 `GameTilemap` 至少保存 `cols`、`rows`、`tileSize`、`tilesetId`、`tilesetCols`、`tiles`、`used`。
+- SDL 版不再缓存 `tilesetTileCount`；`SetTile` / `FillTileRect` / `ClearTilemap` / `LoadTilemap` 只拒绝小于 `-1` 的值，超出当前 tileset 范围的非负 `tileId` 会保留到地图里，由 `DrawTilemap()` 按 live tileset 尺寸跳过不可绘制格子。
 - 是否用 `std::vector` 还是更轻量结构体数组，可在实现阶段再调整，但首版不建议过度优化
 
 ---
@@ -924,7 +924,7 @@ static bool _srandDone;
 
 - 让 sprite demo、animation、tilemap 类示例可迁移。
 - 当前状态：已完成，`CreateSprite`、`LoadSpriteBMP`、`LoadSprite`、`DrawSprite*`、`CreateTilemap` / `SaveTilemap` / `LoadTilemap` / `DrawTilemap` 已落地，并由 `tests/sdldemo1.cpp` 覆盖基础回归。
-- Tilemap 侧已经把非法 `tileId` 拒绝逻辑前移到创建 / 载入 / 写入边界；`DrawTilemap()` 绘制前还会按 live tileset sprite 尺寸刷新 `tilesetCols` / `tilesetTileCount`，避免 sprite 槽位释放重建后继续信任旧缓存。
+- Tilemap 侧现在允许保留超出当前 tileset 范围的非负 `tileId`；`DrawTilemap()` 在绘制前按 live tileset sprite 尺寸即时计算可用瓦片数，并跳过当前不可绘制的格子，避免 sprite 槽位释放重建后访问越界像素。
 
 ### 阶段 3：字体与音频（已完成）
 
@@ -1004,5 +1004,5 @@ static bool _srandDone;
 - `PlayBeep` 优先复用 `SDL_mixer`，失败时再回退到 plain SDL queued audio，但整体仍保持阻塞式调用；这样更接近 Win32 版“提示音期间短暂停一下”的教学预期。
 - 字体部分不把“系统字体家族名跨平台精确解析”列为首版硬要求，是为了控制复杂度，避免一开始就把 Win32 / macOS / Linux 的字体发现机制都卷进来。
 - 可选 SDL 扩展类型的前向声明必须复用 SDL 官方 typedef tag；这是为了兼容 MinGW，对外看起来只是声明细节，但改错会直接导致编译冲突。
-- Tilemap 在创建阶段缓存 `tilesetCols` / `tilesetTileCount` 以降低校验成本，但 `DrawTilemap()` 在 memcpy 风险点前仍按 live sprite 尺寸刷新缓存；这是为了同时满足性能和 sprite 槽位复用后的内存安全。
+- Tilemap 不再缓存 `tilesetTileCount`，而是由 `DrawTilemap()` 在 memcpy 风险点前按 live sprite 尺寸即时计算 `tileCount`；这样既减少内部状态，又保持 sprite 槽位复用后的内存安全。
 - Windows DPI 默认选择 `unaware`，不是因为它技术上更先进，而是因为它更符合教学场景：同样一个 `800x600` 示例换到高分屏机器上不会显得过小。

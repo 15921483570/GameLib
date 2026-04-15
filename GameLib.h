@@ -58,7 +58,7 @@
 // Version Info
 #define GAMELIB_VERSION_MAJOR     1
 #define GAMELIB_VERSION_MINOR     4
-#define GAMELIB_VERSION_PATCH     0
+#define GAMELIB_VERSION_PATCH     1
 
 
 //---------------------------------------------------------------------
@@ -454,7 +454,6 @@ private:
     // internal tilemap management
     int _AllocTilemapSlot();
     int _GetTilesetTileCount(int tilesetId, int tileSize) const;
-    bool _IsValidTileId(int mapId, int tileId) const;
 
 private:
     // window state
@@ -510,7 +509,6 @@ private:
         int tileSize;       // tile size in pixels
         int tilesetId;      // tileset sprite ID
         int tilesetCols;    // tiles per row in tileset
-        int tilesetTileCount; // cached tile count in tileset
         int *tiles;         // tile ID array (cols * rows, -1 = empty)
         bool used;          // is this slot in use
     };
@@ -3201,15 +3199,6 @@ int GameLib::_GetTilesetTileCount(int tilesetId, int tileSize) const
     return cols * rows;
 }
 
-bool GameLib::_IsValidTileId(int mapId, int tileId) const
-{
-    if (tileId == -1) return true;
-    if (mapId < 0 || mapId >= (int)_tilemaps.size()) return false;
-    if (!_tilemaps[mapId].used) return false;
-    int tileCount = _tilemaps[mapId].tilesetTileCount;
-    return tileId >= 0 && tileId < tileCount;
-}
-
 
 //=====================================================================
 // Tilemap System
@@ -3226,7 +3215,6 @@ int GameLib::_AllocTilemapSlot()
     tm.tileSize = 0;
     tm.tilesetId = -1;
     tm.tilesetCols = 0;
-    tm.tilesetTileCount = 0;
     tm.tiles = NULL;
     tm.used = false;
     _tilemaps.push_back(tm);
@@ -3252,7 +3240,6 @@ int GameLib::CreateTilemap(int cols, int rows, int tileSize, int tilesetId)
     _tilemaps[id].tileSize = tileSize;
     _tilemaps[id].tilesetId = tilesetId;
     _tilemaps[id].tilesetCols = _sprites[tilesetId].width / tileSize;
-    _tilemaps[id].tilesetTileCount = tileCount;
     _tilemaps[id].tiles = tiles;
     _tilemaps[id].used = true;
 
@@ -3344,7 +3331,7 @@ int GameLib::LoadTilemap(const char *filename, int tilesetId)
             return -1;
         }
         for (int col = 0; col < count; col++) {
-            if (!_IsValidTileId(mapId, rowPtr[col])) {
+            if (rowPtr[col] < -1) {
                 FreeTilemap(mapId);
                 fclose(fp);
                 return -1;
@@ -3366,7 +3353,6 @@ void GameLib::FreeTilemap(int mapId)
     }
     _tilemaps[mapId].tilesetId = -1;
     _tilemaps[mapId].tilesetCols = 0;
-    _tilemaps[mapId].tilesetTileCount = 0;
     _tilemaps[mapId].used = false;
 }
 
@@ -3376,7 +3362,7 @@ void GameLib::SetTile(int mapId, int col, int row, int tileId)
     if (!_tilemaps[mapId].used) return;
     if (col < 0 || col >= _tilemaps[mapId].cols) return;
     if (row < 0 || row >= _tilemaps[mapId].rows) return;
-    if (!_IsValidTileId(mapId, tileId)) return;
+    if (tileId < -1) return;
     _tilemaps[mapId].tiles[row * _tilemaps[mapId].cols + col] = tileId;
 }
 
@@ -3434,7 +3420,7 @@ void GameLib::FillTileRect(int mapId, int col, int row, int cols, int rows, int 
     if (mapId < 0 || mapId >= (int)_tilemaps.size()) return;
     if (!_tilemaps[mapId].used) return;
     if (cols <= 0 || rows <= 0) return;
-    if (!_IsValidTileId(mapId, tileId)) return;
+    if (tileId < -1) return;
 
     GameTilemap &tm = _tilemaps[mapId];
     int col0 = col;
@@ -3460,7 +3446,7 @@ void GameLib::ClearTilemap(int mapId, int tileId)
 {
     if (mapId < 0 || mapId >= (int)_tilemaps.size()) return;
     if (!_tilemaps[mapId].used) return;
-    if (!_IsValidTileId(mapId, tileId)) return;
+    if (tileId < -1) return;
 
     GameTilemap &tm = _tilemaps[mapId];
     int count = tm.cols * tm.rows;
@@ -3484,7 +3470,6 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
     int tsCols = tset.width / ts;
     int tileCount = _GetTilesetTileCount(tsId, ts);
     tm.tilesetCols = tsCols;
-    tm.tilesetTileCount = tileCount;
     if (tsCols <= 0 || tileCount <= 0) return;
 
     // Calculate visible tile range on screen, avoid traversing the whole map
