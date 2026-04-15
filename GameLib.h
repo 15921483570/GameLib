@@ -750,6 +750,17 @@ static void _gamelib_plot_ellipse_points_unique(GameLib *game,
     }
 }
 
+template <typename T>
+static T _gamelib_load_proc(HMODULE module, const char *name)
+{
+    FARPROC proc = GetProcAddress(module, name);
+    T typed = NULL;
+    if (!proc) return typed;
+    if (sizeof(typed) != sizeof(proc)) return typed;
+    memcpy(&typed, &proc, sizeof(typed));
+    return typed;
+}
+
 static int _gamelib_load_apis()
 {
     if (_gamelib_apis_loaded) return 0;
@@ -762,27 +773,27 @@ static int _gamelib_load_apis()
         return -1;
     }
 
-    _gl_SetDIBitsToDevice = (PFN_SetDIBitsToDevice)GetProcAddress(hGdi32, "SetDIBitsToDevice");
-    _gl_GetStockObject    = (PFN_GetStockObject)GetProcAddress(hGdi32, "GetStockObject");
-    _gl_CreateCompatibleDC = (PFN_CreateCompatibleDC)GetProcAddress(hGdi32, "CreateCompatibleDC");
-    _gl_DeleteDC          = (PFN_DeleteDC)GetProcAddress(hGdi32, "DeleteDC");
-    _gl_CreateDIBSection  = (PFN_CreateDIBSection)GetProcAddress(hGdi32, "CreateDIBSection");
-    _gl_SelectObject      = (PFN_SelectObject)GetProcAddress(hGdi32, "SelectObject");
-    _gl_DeleteObject      = (PFN_DeleteObject)GetProcAddress(hGdi32, "DeleteObject");
-    _gl_BitBlt            = (PFN_BitBlt)GetProcAddress(hGdi32, "BitBlt");
-    _gl_CreateFontW       = (PFN_CreateFontW)GetProcAddress(hGdi32, "CreateFontW");
-    _gl_TextOutW          = (PFN_TextOutW)GetProcAddress(hGdi32, "TextOutW");
-    _gl_SetTextColor      = (PFN_SetTextColor)GetProcAddress(hGdi32, "SetTextColor");
-    _gl_SetBkMode         = (PFN_SetBkMode)GetProcAddress(hGdi32, "SetBkMode");
-    _gl_GetTextExtentPoint32W = (PFN_GetTextExtentPoint32W)GetProcAddress(hGdi32, "GetTextExtentPoint32W");
-    _gl_GdiFlush              = (PFN_GdiFlush)GetProcAddress(hGdi32, "GdiFlush");
+    _gl_SetDIBitsToDevice = _gamelib_load_proc<PFN_SetDIBitsToDevice>(hGdi32, "SetDIBitsToDevice");
+    _gl_GetStockObject    = _gamelib_load_proc<PFN_GetStockObject>(hGdi32, "GetStockObject");
+    _gl_CreateCompatibleDC = _gamelib_load_proc<PFN_CreateCompatibleDC>(hGdi32, "CreateCompatibleDC");
+    _gl_DeleteDC          = _gamelib_load_proc<PFN_DeleteDC>(hGdi32, "DeleteDC");
+    _gl_CreateDIBSection  = _gamelib_load_proc<PFN_CreateDIBSection>(hGdi32, "CreateDIBSection");
+    _gl_SelectObject      = _gamelib_load_proc<PFN_SelectObject>(hGdi32, "SelectObject");
+    _gl_DeleteObject      = _gamelib_load_proc<PFN_DeleteObject>(hGdi32, "DeleteObject");
+    _gl_BitBlt            = _gamelib_load_proc<PFN_BitBlt>(hGdi32, "BitBlt");
+    _gl_CreateFontW       = _gamelib_load_proc<PFN_CreateFontW>(hGdi32, "CreateFontW");
+    _gl_TextOutW          = _gamelib_load_proc<PFN_TextOutW>(hGdi32, "TextOutW");
+    _gl_SetTextColor      = _gamelib_load_proc<PFN_SetTextColor>(hGdi32, "SetTextColor");
+    _gl_SetBkMode         = _gamelib_load_proc<PFN_SetBkMode>(hGdi32, "SetBkMode");
+    _gl_GetTextExtentPoint32W = _gamelib_load_proc<PFN_GetTextExtentPoint32W>(hGdi32, "GetTextExtentPoint32W");
+    _gl_GdiFlush              = _gamelib_load_proc<PFN_GdiFlush>(hGdi32, "GdiFlush");
 
-    _gl_timeBeginPeriod   = (PFN_timeBeginPeriod)GetProcAddress(hWinmm, "timeBeginPeriod");
-    _gl_timeEndPeriod     = (PFN_timeEndPeriod)GetProcAddress(hWinmm, "timeEndPeriod");
-    _gl_timeSetEvent      = (PFN_timeSetEvent)GetProcAddress(hWinmm, "timeSetEvent");
-    _gl_timeKillEvent     = (PFN_timeKillEvent)GetProcAddress(hWinmm, "timeKillEvent");
-    _gl_PlaySoundW        = (PFN_PlaySoundW)GetProcAddress(hWinmm, "PlaySoundW");
-    _gl_mciSendStringW    = (PFN_mciSendStringW)GetProcAddress(hWinmm, "mciSendStringW");
+    _gl_timeBeginPeriod   = _gamelib_load_proc<PFN_timeBeginPeriod>(hWinmm, "timeBeginPeriod");
+    _gl_timeEndPeriod     = _gamelib_load_proc<PFN_timeEndPeriod>(hWinmm, "timeEndPeriod");
+    _gl_timeSetEvent      = _gamelib_load_proc<PFN_timeSetEvent>(hWinmm, "timeSetEvent");
+    _gl_timeKillEvent     = _gamelib_load_proc<PFN_timeKillEvent>(hWinmm, "timeKillEvent");
+    _gl_PlaySoundW        = _gamelib_load_proc<PFN_PlaySoundW>(hWinmm, "PlaySoundW");
+    _gl_mciSendStringW    = _gamelib_load_proc<PFN_mciSendStringW>(hWinmm, "mciSendStringW");
 
     if (!_gl_SetDIBitsToDevice || !_gl_GetStockObject ||
         !_gl_CreateCompatibleDC || !_gl_DeleteDC ||
@@ -842,22 +853,14 @@ static int _gamelib_gdiplus_init()
     HMODULE hOle32 = LoadLibraryA("ole32.dll");
     if (!hOle32) { FreeLibrary(hGdiPlus); return -2; }
 
-    _gl_GdiplusStartup = (PFN_GdiplusStartup)
-        GetProcAddress(hGdiPlus, "GdiplusStartup");
-    _gl_GdipCreateBitmapFromStream = (PFN_GdipCreateBitmapFromStream)
-        GetProcAddress(hGdiPlus, "GdipCreateBitmapFromStream");
-    _gl_GdipGetImageWidth = (PFN_GdipGetImageWidth)
-        GetProcAddress(hGdiPlus, "GdipGetImageWidth");
-    _gl_GdipGetImageHeight = (PFN_GdipGetImageHeight)
-        GetProcAddress(hGdiPlus, "GdipGetImageHeight");
-    _gl_GdipBitmapLockBits = (PFN_GdipBitmapLockBits)
-        GetProcAddress(hGdiPlus, "GdipBitmapLockBits");
-    _gl_GdipBitmapUnlockBits = (PFN_GdipBitmapUnlockBits)
-        GetProcAddress(hGdiPlus, "GdipBitmapUnlockBits");
-    _gl_GdipDisposeImage = (PFN_GdipDisposeImage)
-        GetProcAddress(hGdiPlus, "GdipDisposeImage");
-    _gl_CreateStreamOnHGlobal = (PFN_CreateStreamOnHGlobal)
-        GetProcAddress(hOle32, "CreateStreamOnHGlobal");
+    _gl_GdiplusStartup = _gamelib_load_proc<PFN_GdiplusStartup>(hGdiPlus, "GdiplusStartup");
+    _gl_GdipCreateBitmapFromStream = _gamelib_load_proc<PFN_GdipCreateBitmapFromStream>(hGdiPlus, "GdipCreateBitmapFromStream");
+    _gl_GdipGetImageWidth = _gamelib_load_proc<PFN_GdipGetImageWidth>(hGdiPlus, "GdipGetImageWidth");
+    _gl_GdipGetImageHeight = _gamelib_load_proc<PFN_GdipGetImageHeight>(hGdiPlus, "GdipGetImageHeight");
+    _gl_GdipBitmapLockBits = _gamelib_load_proc<PFN_GdipBitmapLockBits>(hGdiPlus, "GdipBitmapLockBits");
+    _gl_GdipBitmapUnlockBits = _gamelib_load_proc<PFN_GdipBitmapUnlockBits>(hGdiPlus, "GdipBitmapUnlockBits");
+    _gl_GdipDisposeImage = _gamelib_load_proc<PFN_GdipDisposeImage>(hGdiPlus, "GdipDisposeImage");
+    _gl_CreateStreamOnHGlobal = _gamelib_load_proc<PFN_CreateStreamOnHGlobal>(hOle32, "CreateStreamOnHGlobal");
 
     if (!_gl_GdiplusStartup || !_gl_GdipCreateBitmapFromStream ||
         !_gl_GdipGetImageWidth || !_gl_GdipGetImageHeight ||

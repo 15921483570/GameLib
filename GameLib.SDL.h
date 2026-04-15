@@ -2846,6 +2846,7 @@ void GameLib::StopWAV()
 #endif
 }
 
+#if GAMELIB_SDL_HAS_MIXER
 static char _gamelib_sdl_music_ascii_tolower(char ch)
 {
     if (ch >= 'A' && ch <= 'Z') return (char)(ch - 'A' + 'a');
@@ -2874,6 +2875,7 @@ static bool _gamelib_sdl_is_midi_music_path(const char *filename)
     return _gamelib_sdl_path_has_music_extension(filename, "mid") ||
            _gamelib_sdl_path_has_music_extension(filename, "midi");
 }
+#endif
 
 bool GameLib::PlayMusic(const char *filename, bool loop)
 {
