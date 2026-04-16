@@ -4,10 +4,10 @@
 
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
-**当前版本**: `1.7.0`
+**当前版本**: `1.8.0`
 **最后修改**: 2026/04/16
 
-当前 `1.7.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、Clip Rectangle 裁剪矩形、裁剪后的 `DrawLine()`、`LoadSprite()` 的超大尺寸拒绝、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则、独立的精灵旋转绘制（`DrawSpriteRotated` / `DrawSpriteFrameRotated`，中心点语义，最近邻采样），以及最近调整后的 Tilemap 语义：不再缓存 `tilesetTileCount`，允许地图数据保存超出当前 tileset 范围的非负 `tileId`，并在 `DrawTilemap()` 绘制时按 live tileset 尺寸跳过不可用瓦片），以及新增的场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`，延迟到下一帧生效）和存档读写（`SaveInt`/`LoadInt`/`SaveFloat`/`LoadFloat`/`SaveString`/`LoadString`/`HasSaveKey`/`DeleteSaveKey`/`DeleteSave`，全部 `static`，纯文本 `key=value` 格式）。
+当前 `1.8.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、Clip Rectangle 裁剪矩形、裁剪后的 `DrawLine()`、`LoadSprite()` 的超大尺寸拒绝、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则、独立的精灵旋转绘制（`DrawSpriteRotated` / `DrawSpriteFrameRotated`，中心点语义，最近邻采样），以及最近调整后的 Tilemap 语义：不再缓存 `tilesetTileCount`，允许地图数据保存超出当前 tileset 范围的非负 `tileId`，并在 `DrawTilemap()` 绘制时按 live tileset 尺寸跳过不可用瓦片），以及新增的场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`，延迟到下一帧生效）和存档读写（`SaveInt`/`LoadInt`/`SaveFloat`/`LoadFloat`/`SaveString`/`LoadString`/`HasSaveKey`/`DeleteSaveKey`/`DeleteSave`，全部 `static`，纯文本 `key=value` 格式），以及固定 framebuffer + 可选可缩放窗口：`Open()` 决定逻辑 framebuffer 尺寸，`Update()` 在窗口客户区与 framebuffer 尺寸不同时自动缩放填满，鼠标坐标则反算回 framebuffer 逻辑坐标。
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### 1.3 双缓冲架构
 
-所有绘制操作都写入内存帧缓冲 (`uint32_t*` ARGB 数组)，只有调用 `Update()` 时才通过 `BitBlt` 从 DIB Section 的常备 `_memDC` 刷新到窗口。
+所有绘制操作都写入内存帧缓冲 (`uint32_t*` ARGB 数组)。`Open()` 时确定 framebuffer 固定尺寸；之后调用 `Update()` 时，如果当前窗口客户区尺寸与 framebuffer 一致就直接 `BitBlt`，否则使用 `StretchBlt` 缩放填满整个客户区。
 
 ### 1.4 图形自实现
 
@@ -118,7 +118,7 @@ GameLib.h
 
 ### 3.2 链接库
 
-- `gdi32` — BitBlt, CreateDIBSection, CreateCompatibleDC, CreateFontW, TextOutW, SelectObject, DeleteObject, DeleteDC, GetStockObject, SetDIBitsToDevice, SetTextColor, SetBkMode, GetTextExtentPoint32W, GdiFlush（通过 LoadLibrary 动态加载）
+- `gdi32` — BitBlt, StretchBlt, SetStretchBltMode, CreateDIBSection, CreateCompatibleDC, CreateFontW, TextOutW, SelectObject, DeleteObject, DeleteDC, GetStockObject, SetDIBitsToDevice, SetTextColor, SetBkMode, GetTextExtentPoint32W, GdiFlush（通过 LoadLibrary 动态加载）
 - `winmm` — timeBeginPeriod, timeEndPeriod, timeSetEvent, timeKillEvent, PlaySoundW, mciSendStringW（通过 LoadLibrary 动态加载）
 - `gdiplus` — GdiplusStartup, GdipCreateBitmapFromStream, GdipBitmapLockBits 等（通过 LoadLibrary 动态加载，首次调用 `LoadSprite` 时懒加载）
 - `ole32` — CreateStreamOnHGlobal（通过 LoadLibrary 动态加载，随 gdiplus 一起加载）
@@ -235,9 +235,11 @@ bool _active;           // 窗口是否激活
 bool _showFps;          // 是否在标题栏显示 FPS
 bool _mouseVisible;     // 是否显示窗口客户区内的鼠标光标
 std::string _title;
-int _width, _height;    // 客户区尺寸
+int _width, _height;    // 固定 framebuffer 逻辑尺寸
+int _windowWidth, _windowHeight; // 当前窗口客户区尺寸
 int _clipX, _clipY;     // 当前有效裁剪矩形左上角（已与屏幕求交）
 int _clipW, _clipH;     // 当前有效裁剪矩形尺寸；<=0 表示无可见区域
+bool _resizable;        // Open() 是否允许用户拖拽缩放 / 最大化
 
 // 帧缓冲
 uint32_t *_framebuffer; // width * height 的 ARGB 数组，由 DIB Section 管理
@@ -307,13 +309,15 @@ static bool _srandDone; // srand 是否已初始化
 - 若加载失败，弹出 `MessageBoxA` 错误对话框并调用 `exit(1)` 终止程序
 - 这意味着 API 加载在构造时即完成，后续所有方法无需检查函数指针是否为 NULL
 
-#### `int Open(int width, int height, const char *title, bool center = false)`
+#### `int Open(int width, int height, const char *title, bool center = false, bool resizable = false)`
 - 创建窗口并初始化帧缓冲（通过 DIB Section）、输入、时间系统
 - 若当前对象之前已经 `Open()` 过，会先清理旧窗口、DIB、timer/event 等状态，并丢弃消息队列里残留的 `WM_QUIT`，因此支持 restart-safe 重开
 - **尺寸验证**：`width/height` 必须在 `1~16384` 范围内，否则返回 -7
-- **保证客户区严格等于 width × height**：先用 `AdjustWindowRect` 计算，创建后用 `GetClientRect` 二次校正
+- `width/height` 表示固定 framebuffer 逻辑尺寸；打开后不会因窗口缩放而改变
+- **保证初始客户区严格等于 width × height**：先用 `AdjustWindowRect` 计算，创建后用 `GetClientRect` 二次校正
 - `center=true` 时窗口居中显示；否则使用 `CW_USEDEFAULT`
-- 窗口样式: `WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX`（不可缩放）
+- `resizable=false` 时窗口样式为 `WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX`
+- `resizable=true` 时额外启用 `WS_THICKFRAME | WS_MAXIMIZEBOX`，允许用户拖拽缩放和最大化
 - 窗口标题支持 UTF-8（内部转 WideChar）
 - 返回值: 0=成功, -1=窗口类注册失败, -2=创建 DC 失败, -3=创建 DIB Section 失败, -4=SelectObject 失败, -5=UTF-8 转换失败, -6=创建窗口失败, -7=尺寸超限
 - 使用 `GWLP_USERDATA` 存储 this 指针
@@ -321,13 +325,21 @@ static bool _srandDone; // srand 是否已初始化
 - 调用 `timeBeginPeriod(1)` 改善等待粒度；若成功，会在关闭/析构时匹配调用 `timeEndPeriod(1)`
 - 尝试创建 1ms 周期的多媒体定时器事件（`CreateEventA + timeSetEvent`），供 `WaitFrame()` 更稳定地等待下一帧；若失败则自动回退到 `Sleep(1)`
 
+#### `void WinResize(int width, int height)`
+- 设置窗口客户区尺寸，`width/height` 始终表示客户区，不改变 framebuffer 尺寸
+- 对不可缩放窗口同样有效；若当前是最大化的可缩放窗口，会先还原再设置尺寸
+
+#### `void SetMaximized(bool maximized)`
+- 仅在 `Open(..., ..., ..., ..., true)` 创建的可缩放窗口上有效
+- `true` 时最大化，`false` 时还原普通窗口
+
 #### `bool IsClosed() const`
 - 窗口是否已关闭（WM_CLOSE 或 WM_DESTROY 触发）
 
 #### `void Update()`
-1. 通过 `BitBlt` 将 DIB Section 的 `_memDC` 刷新到窗口
-2. 保存上一帧按键状态到 `_keys_prev`，鼠标状态到 `_mouseButtons_prev`，并将 `_mouseWheelDelta` 清零
-3. 派发 Windows 消息（PeekMessage 循环）
+1. 保存上一帧按键状态到 `_keys_prev`，鼠标状态到 `_mouseButtons_prev`，并将 `_mouseWheelDelta` 清零
+2. 派发 Windows 消息（PeekMessage 循环），同步当前客户区尺寸和输入状态
+3. 如果窗口客户区尺寸与 framebuffer 一致，就通过 `BitBlt` 将 DIB Section 的 `_memDC` 直接刷新到窗口；否则用 `StretchBlt` 缩放填满整个客户区
 4. 使用 `QueryPerformanceCounter()` 更新 deltaTime 和 FPS（内部使用 `double` 计算，FPS 每秒统计一次）
 5. FPS 更新时调用 `_UpdateTitleFps()` 更新标题栏显示
 
@@ -597,7 +609,8 @@ static bool _srandDone; // srand 是否已初始化
 - 按键是否刚刚松开（**边沿检测**：当前帧未按下且上一帧按下）
 
 #### `int GetMouseX() const` / `int GetMouseY() const`
-- 鼠标相对于客户区的坐标
+- 返回按当前窗口横纵缩放比例反算后的 framebuffer 逻辑坐标
+- 当窗口客户区与 framebuffer 同尺寸时，等价于普通客户区像素坐标
 
 #### `bool IsMouseDown(int button) const`
 - 鼠标按键是否按下
@@ -870,14 +883,15 @@ level=3
 | `WM_ACTIVATE` | 更新 `_active` 状态 |
 | `WM_KEYDOWN` | 过滤重复按键（bit 30），设置 `_keys[vk] = 1` |
 | `WM_KEYUP` | 设置 `_keys[vk] = 0` |
-| `WM_MOUSEMOVE` | 更新 `_mouseX`, `_mouseY` |
+| `WM_SIZE` | 更新 `_windowWidth`, `_windowHeight` |
+| `WM_MOUSEMOVE` | 读取客户区坐标并按当前缩放比例换算到 `_mouseX`, `_mouseY` |
 | `WM_SETCURSOR` | 在客户区内根据 `_mouseVisible` 显示箭头或隐藏鼠标 |
-| `WM_MOUSEWHEEL` | 更新鼠标位置并累计 `_mouseWheelDelta` |
-| `WM_LBUTTONDOWN/UP` | 更新 `_mouseButtons[0]` |
-| `WM_RBUTTONDOWN/UP` | 更新 `_mouseButtons[1]` |
-| `WM_MBUTTONDOWN/UP` | 更新 `_mouseButtons[2]` |
+| `WM_MOUSEWHEEL` | 更新缩放后的鼠标位置并累计 `_mouseWheelDelta` |
+| `WM_LBUTTONDOWN/UP` | 更新缩放后的鼠标位置，并更新 `_mouseButtons[0]` |
+| `WM_RBUTTONDOWN/UP` | 更新缩放后的鼠标位置，并更新 `_mouseButtons[1]` |
+| `WM_MBUTTONDOWN/UP` | 更新缩放后的鼠标位置，并更新 `_mouseButtons[2]` |
 | `MM_MCINOTIFY` | 当当前音乐是 MIDI 且 `_musicLoop=true` 时，执行 `seek ... to start` 后重新播放；否则清理该实例的 MCI 资源状态 |
-| `WM_PAINT` | 用 `BitBlt` 从 `_memDC` 重绘帧缓冲 |
+| `WM_PAINT` | 客户区与 framebuffer 同尺寸时用 `BitBlt`，否则用 `StretchBlt` 重绘帧缓冲 |
 
 ---
 

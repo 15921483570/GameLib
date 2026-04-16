@@ -4,11 +4,13 @@
 
 | 函数                         | 说明                         |
 | ---------------------------- | ---------------------------- |
-| `Open(w, h, title, center)`  | 创建窗口，center=true 时居中 |
+| `Open(w, h, title, center, resizable)`  | 创建窗口；`w/h` 固定为 framebuffer 尺寸，`center=true` 时居中，`resizable=true` 时允许用户拖拽缩放 |
 | `IsClosed()`                 | 窗口是否关闭                 |
 | `Update()`                   | 刷新画面、处理输入           |
 | `WaitFrame(fps)`             | 帧率控制                     |
-| `GetWidth()` / `GetHeight()` | 窗口尺寸                     |
+| `GetWidth()` / `GetHeight()` | framebuffer 逻辑尺寸         |
+| `WinResize(w, h)`            | 设置窗口客户区尺寸           |
+| `SetMaximized(maximized)`    | 最大化或还原可缩放窗口       |
 | `GetDeltaTime()`             | 帧间隔（秒，返回 `double`）  |
 | `GetFPS()`                   | 当前帧率（返回 `double`）    |
 | `GetTime()`                  | 运行总时间（秒，返回 `double`） |
@@ -16,6 +18,8 @@
 | `ShowFps(show)`              | 是否在标题栏显示实时 FPS     |
 | `ShowMouse(show)`            | 显示或隐藏窗口内鼠标光标     |
 | `ShowMessage(text, title, buttons)` | 弹出消息框，支持 `OK` 或 `YES/NO` |
+
+`Open()` 里的 `w/h` 只决定 framebuffer 逻辑尺寸；`Update()` 提交画面时，如果当前窗口客户区尺寸与 framebuffer 一致就直接提交，否则自动缩放填满整个客户区。`SetMaximized()` 仅在 `Open(..., ..., ..., ..., true)` 创建的可缩放窗口上生效；`WinResize()` 同时适用于可缩放和不可缩放窗口，参数始终表示客户区尺寸。
 
 ### 绘图
 
@@ -91,7 +95,7 @@
 | `IsKeyDown(key)`              | 按键是否按住               |
 | `IsKeyPressed(key)`           | 按键是否刚按下（单次触发） |
 | `IsKeyReleased(key)`          | 按键是否刚松开（单次触发） |
-| `GetMouseX()` / `GetMouseY()` | 鼠标位置                   |
+| `GetMouseX()` / `GetMouseY()` | 鼠标逻辑位置（按当前窗口缩放反算到 framebuffer 坐标） |
 | `IsMouseDown(button)`         | 鼠标按键是否按下           |
 | `IsMousePressed(button)`      | 鼠标按键是否刚按下（单次触发） |
 | `IsMouseReleased(button)`     | 鼠标按键是否刚松开（单次触发） |

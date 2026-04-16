@@ -291,7 +291,7 @@ public:
     GameLib();
     ~GameLib();
 
-    int Open(int width, int height, const char *title, bool center = false);
+    int Open(int width, int height, const char *title, bool center = false, bool resizable = false);
     bool IsClosed() const;
     void Update();
     void WaitFrame(int fps);
@@ -300,6 +300,8 @@ public:
     double GetTime() const;
     int GetWidth() const;
     int GetHeight() const;
+    void WinResize(int width, int height);
+    void SetMaximized(bool maximized);
     void SetTitle(const char *title);
     void ShowFps(bool show);
     void ShowMouse(bool show);
@@ -430,6 +432,8 @@ private:
 
     void _DestroyWindowResources();
     void _UpdateTitleFps();
+    void _UpdateWindowSize();
+    void _SetMouseFromWindowCoords(int x, int y);
     void _SyncInputState();
     void _SetPixelFast(int x, int y, uint32_t color);
     void _DrawHLine(int x1, int x2, int y, uint32_t color);
@@ -466,10 +470,13 @@ private:
     std::string _title;
     int _width;
     int _height;
+    int _windowWidth;
+    int _windowHeight;
     int _clipX;
     int _clipY;
     int _clipW;
     int _clipH;
+    bool _resizable;
 
     uint32_t *_framebuffer;
 
@@ -907,10 +914,13 @@ GameLib::GameLib()
     _title = "";
     _width = 0;
     _height = 0;
+    _windowWidth = 0;
+    _windowHeight = 0;
     _clipX = 0;
     _clipY = 0;
     _clipW = 0;
     _clipH = 0;
+    _resizable = false;
     _framebuffer = NULL;
     memset(_keys, 0, sizeof(_keys));
     memset(_keys_prev, 0, sizeof(_keys_prev));
@@ -1031,10 +1041,13 @@ void GameLib::_DestroyWindowResources()
     }
     _width = 0;
     _height = 0;
+    _windowWidth = 0;
+    _windowHeight = 0;
     _clipX = 0;
     _clipY = 0;
     _clipW = 0;
     _clipH = 0;
+    _resizable = false;
 }
 
 bool GameLib::_EnsureImageReady()
@@ -1375,6 +1388,34 @@ void GameLib::_UpdateTitleFps()
     }
 }
 
+void GameLib::_UpdateWindowSize()
+{
+    if (!_window) {
+        _windowWidth = 0;
+        _windowHeight = 0;
+        return;
+    }
+
+    SDL_GetWindowSize(_window, &_windowWidth, &_windowHeight);
+}
+
+void GameLib::_SetMouseFromWindowCoords(int x, int y)
+{
+    if (_width <= 0 || _height <= 0 || _windowWidth <= 0 || _windowHeight <= 0) {
+        _mouseX = 0;
+        _mouseY = 0;
+        return;
+    }
+
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= _windowWidth) x = _windowWidth - 1;
+    if (y >= _windowHeight) y = _windowHeight - 1;
+
+    _mouseX = (int)(((long long)x * (long long)_width) / (long long)_windowWidth);
+    _mouseY = (int)(((long long)y * (long long)_height) / (long long)_windowHeight);
+}
+
 void GameLib::_SyncInputState()
 {
     const Uint8 *state = SDL_GetKeyboardState(NULL);
@@ -1389,14 +1430,13 @@ void GameLib::_SyncInputState()
 
     int mx = 0, my = 0;
     Uint32 mouseState = SDL_GetMouseState(&mx, &my);
-    _mouseX = mx;
-    _mouseY = my;
+    _SetMouseFromWindowCoords(mx, my);
     _mouseButtons[MOUSE_LEFT] = (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT)) ? 1 : 0;
     _mouseButtons[MOUSE_RIGHT] = (mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? 1 : 0;
     _mouseButtons[MOUSE_MIDDLE] = (mouseState & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? 1 : 0;
 }
 
-int GameLib::Open(int width, int height, const char *title, bool center)
+int GameLib::Open(int width, int height, const char *title, bool center, bool resizable)
 {
     if (width <= 0 || height <= 0 || width > 16384 || height > 16384) return -9;
 
@@ -1417,6 +1457,9 @@ int GameLib::Open(int width, int height, const char *title, bool center)
 
     _width = width;
     _height = height;
+    _windowWidth = width;
+    _windowHeight = height;
+    _resizable = resizable;
     _title = title ? title : "";
     _closing = false;
     _focused = true;
@@ -1426,7 +1469,9 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
     int pos = center ? SDL_WINDOWPOS_CENTERED : SDL_WINDOWPOS_UNDEFINED;
-    _window = SDL_CreateWindow(_title.c_str(), pos, pos, width, height, SDL_WINDOW_SHOWN);
+    Uint32 windowFlags = SDL_WINDOW_SHOWN;
+    if (resizable) windowFlags |= SDL_WINDOW_RESIZABLE;
+    _window = SDL_CreateWindow(_title.c_str(), pos, pos, width, height, windowFlags);
     if (!_window) {
         _DestroyWindowResources();
         return -2;
@@ -1462,6 +1507,7 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     memset(_mouseButtons_prev, 0, sizeof(_mouseButtons_prev));
     _mouseWheelDelta = 0;
     ClearClip();
+    _UpdateWindowSize();
 
     _perfFrequency = (uint64_t)SDL_GetPerformanceFrequency();
     if (_perfFrequency == 0) _perfFrequency = 1;
@@ -1506,6 +1552,11 @@ void GameLib::Update()
             case SDL_WINDOWEVENT_CLOSE:
                 _closing = true;
                 break;
+            case SDL_WINDOWEVENT_RESIZED:
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+                _windowWidth = event.window.data1;
+                _windowHeight = event.window.data2;
+                break;
             case SDL_WINDOWEVENT_FOCUS_GAINED:
                 _focused = true;
                 break;
@@ -1516,9 +1567,11 @@ void GameLib::Update()
             case SDL_WINDOWEVENT_HIDDEN:
                 _minimized = true;
                 break;
+            case SDL_WINDOWEVENT_MAXIMIZED:
             case SDL_WINDOWEVENT_RESTORED:
             case SDL_WINDOWEVENT_SHOWN:
                 _minimized = false;
+                _UpdateWindowSize();
                 break;
             default:
                 break;
@@ -1541,6 +1594,7 @@ void GameLib::Update()
     }
 
     _active = _focused && !_minimized;
+    _UpdateWindowSize();
     _SyncInputState();
 
     uint64_t now = (uint64_t)SDL_GetPerformanceCounter();
@@ -1569,7 +1623,16 @@ void GameLib::Update()
 
     SDL_UpdateTexture(_frameTexture, NULL, _framebuffer, _width * (int)sizeof(uint32_t));
     SDL_RenderClear(_renderer);
-    SDL_RenderCopy(_renderer, _frameTexture, NULL, NULL);
+    if (_windowWidth == _width && _windowHeight == _height) {
+        SDL_RenderCopy(_renderer, _frameTexture, NULL, NULL);
+    } else if (_windowWidth > 0 && _windowHeight > 0) {
+        SDL_Rect dstRect;
+        dstRect.x = 0;
+        dstRect.y = 0;
+        dstRect.w = _windowWidth;
+        dstRect.h = _windowHeight;
+        SDL_RenderCopy(_renderer, _frameTexture, NULL, &dstRect);
+    }
     SDL_RenderPresent(_renderer);
 }
 
@@ -1619,6 +1682,32 @@ double GameLib::GetTime() const
 }
 int GameLib::GetWidth() const { return _width; }
 int GameLib::GetHeight() const { return _height; }
+
+void GameLib::WinResize(int width, int height)
+{
+    if (!_window || width <= 0 || height <= 0) return;
+
+    if (_resizable) {
+        Uint32 flags = SDL_GetWindowFlags(_window);
+        if (flags & SDL_WINDOW_MAXIMIZED) {
+            SDL_RestoreWindow(_window);
+        }
+    }
+
+    SDL_SetWindowSize(_window, width, height);
+    _UpdateWindowSize();
+}
+
+void GameLib::SetMaximized(bool maximized)
+{
+    if (!_window || !_resizable) return;
+    if (maximized) {
+        SDL_MaximizeWindow(_window);
+    } else {
+        SDL_RestoreWindow(_window);
+    }
+    _UpdateWindowSize();
+}
 
 void GameLib::SetTitle(const char *title)
 {

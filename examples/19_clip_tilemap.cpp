@@ -80,7 +80,7 @@ int main()
     const int TEXT_W = 284;
     const int TEXT_H = 136;
 
-    game.Open(SW, SH, "19 - Clip Rectangle / Tilemap Windows", true);
+    game.Open(SW, SH, "19 - Clip Rectangle / Tilemap Windows", true, true);
     game.ShowFps(true);
 
     int fgTileset = game.LoadSprite("../assets/tileset.png");

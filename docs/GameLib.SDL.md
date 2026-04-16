@@ -4,7 +4,7 @@
 
 `GameLib.SDL.h` 是 `GameLib.h` 的 **独立 SDL 版产品线**，目标是在 **Windows / macOS / Linux** 上提供尽量一致的教学型 2D 游戏开发体验。
 
-**当前版本**: `1.7.0`
+**当前版本**: `1.8.0`
 
 它不是对现有 `GameLib.h` 的直接替换，也不是在原头文件中塞入大量 `#ifdef SDL` 的混合版本，而是一份 **单独维护的跨平台单头文件**。其公开使用方式尽量保持与 `GameLib.h` 一致：
 
@@ -27,7 +27,7 @@ int main() {
 
 本文档既用于固定 `GameLib.SDL.h` 的定位、依赖、内部架构与兼容边界，也用于同步当前实现状态、已知差异与后续演进边界。
 
-当前 `1.7.0` 已加入与 Win32 主线对齐的 Clip Rectangle 裁剪接口；所有最终写入 `_framebuffer` 的绘制路径都会受当前裁剪矩形约束，空裁剪区域时统一不绘制；`DrawLine()` 会在 Bresenham 前先裁剪线段，`LoadSprite()` 也会拒绝超出 `16384` 限制的图片。最新还加入了与 Win32 版一致的独立旋转绘制（`DrawSpriteRotated` / `DrawSpriteFrameRotated`，中心点语义，最近邻采样）、场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`）和存档读写（`SaveInt`/`LoadInt` 等 9 个 static 函数，纯文本 `key=value` 格式；SDL 版使用标准 `fopen()` 替代 Win32 版的 `_gamelib_fopen_utf8()`）。
+当前 `1.8.0` 已加入与 Win32 主线对齐的 Clip Rectangle 裁剪接口；所有最终写入 `_framebuffer` 的绘制路径都会受当前裁剪矩形约束，空裁剪区域时统一不绘制；`DrawLine()` 会在 Bresenham 前先裁剪线段，`LoadSprite()` 也会拒绝超出 `16384` 限制的图片。最新还加入了与 Win32 版一致的独立旋转绘制（`DrawSpriteRotated` / `DrawSpriteFrameRotated`，中心点语义，最近邻采样）、场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`）和存档读写（`SaveInt`/`LoadInt` 等 9 个 static 函数，纯文本 `key=value` 格式；SDL 版使用标准 `fopen()` 替代 Win32 版的 `_gamelib_fopen_utf8()`），以及固定 framebuffer + 可选可缩放窗口：`Open()` 决定逻辑 framebuffer 尺寸，`Update()` 在窗口客户区与 framebuffer 尺寸不同时自动缩放填满，鼠标位置则反算为 framebuffer 逻辑坐标。
 
 若你只想快速查看 SDL 版的编译命令、依赖开关和当前限制，可直接看仓库根目录的 `SDL2PORT.md`。
 
@@ -348,7 +348,7 @@ GameLib.SDL.h
 
 以下公开接口目标是 **名称、参数、基本语义保持一致**：
 
-- `Open` / `IsClosed` / `Update` / `WaitFrame`
+- `Open` / `IsClosed` / `Update` / `WaitFrame` / `WinResize` / `SetMaximized`
 - `Clear` / `SetPixel` / `GetPixel` / `SetClip` / `ClearClip` / `GetClip`
 - `GetClipX` / `GetClipY` / `GetClipW` / `GetClipH`
 - `DrawLine` / `DrawRect` / `FillRect` / `DrawCircle` / `FillCircle` / `DrawEllipse` / `FillEllipse` / `DrawTriangle` / `FillTriangle`
@@ -452,36 +452,43 @@ GameLib.SDL.h
 
 其中：
 
-- `_framebuffer` 仍是 `uint32_t*` 的 CPU 内存帧缓冲。
+- `_framebuffer` 仍是 `uint32_t*` 的 CPU 内存帧缓冲，尺寸在 `Open()` 时固定。
 - `_frameTexture` 使用 `SDL_PIXELFORMAT_ARGB8888`。
-- `Update()` 将 `_framebuffer` 上传到 `_frameTexture`，再复制到 renderer 并 `SDL_RenderPresent()`。
+- `Update()` 将 `_framebuffer` 上传到 `_frameTexture`；若窗口客户区尺寸与 framebuffer 一致，则直接复制到 renderer，否则缩放填满当前客户区，再 `SDL_RenderPresent()`。
 
 建议流程：
 
-1. `Open()` 中创建固定大小窗口。
+1. `Open()` 中创建初始客户区与 framebuffer 同尺寸的窗口。
 2. 创建 renderer。
-3. 创建与窗口尺寸一致的 streaming texture。
+3. 创建与 framebuffer 尺寸一致的 streaming texture。
 4. 分配 `_framebuffer` 并清零。
 5. `Update()` 中调用 `SDL_UpdateTexture()` 或 `SDL_LockTexture() + memcpy()`。
-6. 调用 `SDL_RenderClear()`、`SDL_RenderCopy()`、`SDL_RenderPresent()`。
+6. 调用 `SDL_RenderClear()`、`SDL_RenderCopy()`、`SDL_RenderPresent()`；窗口尺寸变化时只调整目标矩形，不重建 framebuffer。
 
 约束：
 
-- 首版窗口默认 **不可缩放**，与现有 `GameLib.h` 行为对齐。
+- 默认窗口仍 **不可缩放**，但 `Open(..., ..., ..., ..., true)` 可显式启用 SDL 的 resizable window。
 - 默认关闭插值缩放，优先像素风清晰显示。
 - 不默认依赖 vsync，由 `WaitFrame()` 控制帧率。
 - Windows 上默认采用 **DPI unaware** 策略，由系统缩放整体放大窗口，以匹配 `GameLib.h` 的视觉效果。
 
 ### 7.2 Open 的语义
 
-`Open(int width, int height, const char *title, bool center)` 的首版语义：
+`Open(int width, int height, const char *title, bool center, bool resizable)` 的当前语义：
 
 - 验证尺寸范围仍为 `1~16384`。
+- `width/height` 表示固定 framebuffer 逻辑尺寸；打开后不会因窗口缩放而改变。
 - 必须成功初始化 SDL 视频和音频子系统。
 - `center=true` 时使用 `SDL_WINDOWPOS_CENTERED`。
+- `resizable=true` 时创建 `SDL_WINDOW_RESIZABLE` 窗口，允许用户拖拽缩放和最大化。
 - 标题字符串按 UTF-8 处理。
 - Windows 下在首次 `SDL_Init()` 前设置 DPI awareness 提示，默认值为 `unaware`。
 - 返回值仍为整数错误码，保持与 `GameLib.h` 一样的“显式失败”风格。
+
+补充接口语义：
+
+- `WinResize(w, h)` 只设置窗口客户区尺寸，不改变 framebuffer 尺寸；可缩放和不可缩放窗口都支持。
+- `SetMaximized(bool)` 仅在 `resizable=true` 打开的窗口上有效；`true` 时最大化，`false` 时还原。
 
 建议错误码分层：
 
@@ -501,10 +508,10 @@ GameLib.SDL.h
 
 1. 保存上一帧键鼠状态到 `_keys_prev` / `_mouseButtons_prev`
 2. 将 `_mouseWheelDelta` 清零
-3. 派发 SDL 事件队列
-4. 更新 `_active`、键盘、鼠标、关闭状态
+3. 派发 SDL 事件队列，并同步最新窗口客户区尺寸
+4. 更新 `_active`、键盘、鼠标、关闭状态；鼠标位置按当前窗口横纵缩放比例反算为 framebuffer 逻辑坐标
 5. 更新 `_deltaTime`、`_fps`
-6. 提交 `_framebuffer` 到窗口
+6. 提交 `_framebuffer` 到窗口；客户区与 framebuffer 同尺寸时走直拷贝，否则缩放填满
 7. 需要时更新标题栏 FPS
 
 说明：
@@ -533,6 +540,7 @@ SDL 版输入系统要求：
 
 - 继续使用 `_keys[512]` / `_keys_prev[512]` 进行边沿检测。
 - 鼠标维持 `MOUSE_LEFT` / `MOUSE_RIGHT` / `MOUSE_MIDDLE` 三键模型。
+- `GetMouseX()` / `GetMouseY()` 返回的是按当前窗口客户区尺寸反算后的 framebuffer 逻辑坐标，而不是原始窗口像素坐标。
 - 滚轮增量累加到 `_mouseWheelDelta`，在每次 `Update()` 开始时清零。
 - `_active` 由窗口焦点、最小化状态等 SDL window event 共同决定。
 - `ShowMouse()` 的目标状态缓存在 `_mouseVisible` 中，并在窗口存在时同步到 `SDL_ShowCursor()`。
@@ -842,6 +850,9 @@ int _clipX;
 int _clipY;
 int _clipW;
 int _clipH;
+int _windowWidth;
+int _windowHeight;
+bool _resizable;
 
 // 帧缓冲
 uint32_t *_framebuffer;

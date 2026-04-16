@@ -132,6 +132,8 @@ typedef HBITMAP (WINAPI *PFN_CreateDIBSection)(HDC, const BITMAPINFO*, UINT, voi
 typedef HGDIOBJ (WINAPI *PFN_SelectObject)(HDC, HGDIOBJ);
 typedef BOOL (WINAPI *PFN_DeleteObject)(HGDIOBJ);
 typedef BOOL (WINAPI *PFN_BitBlt)(HDC, int, int, int, int, HDC, int, int, DWORD);
+typedef BOOL (WINAPI *PFN_StretchBlt)(HDC, int, int, int, int, HDC, int, int, int, int, DWORD);
+typedef int (WINAPI *PFN_SetStretchBltMode)(HDC, int);
 typedef HFONT (WINAPI *PFN_CreateFontW)(int, int, int, int, int, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, const WCHAR*);
 typedef BOOL (WINAPI *PFN_TextOutW)(HDC, int, int, LPCWSTR, int);
 typedef COLORREF (WINAPI *PFN_SetTextColor)(HDC, COLORREF);
@@ -312,7 +314,7 @@ public:
     ~GameLib();
 
     // -------- Window and Main Loop --------
-    int Open(int width, int height, const char *title, bool center = false);
+    int Open(int width, int height, const char *title, bool center = false, bool resizable = false);
     bool IsClosed() const;
     void Update();
     void WaitFrame(int fps);
@@ -321,6 +323,8 @@ public:
     double GetTime() const;
     int GetWidth() const;
     int GetHeight() const;
+    void WinResize(int width, int height);
+    void SetMaximized(bool maximized);
     void SetTitle(const char *title);
     void ShowFps(bool show);
     void ShowMouse(bool show);
@@ -467,6 +471,9 @@ private:
     void _InitDIBInfo(void *ptr, int width, int height);
     void _DestroyGraphicsResources();
     void _DestroyTimingResources();
+    void _PresentFrame(HDC hdc) const;
+    void _UpdateClientSize();
+    void _SetMouseFromWindowCoords(int x, int y);
     void _UpdateTitleFps();
 
     // internal pixel drawing (no bounds check, for fast drawing after clipping)
@@ -496,10 +503,13 @@ private:
     std::string _title;
     int _width;
     int _height;
+    int _windowWidth;
+    int _windowHeight;
     int _clipX;
     int _clipY;
     int _clipW;
     int _clipH;
+    bool _resizable;
 
     // frame buffer
     uint32_t *_framebuffer;
@@ -687,6 +697,8 @@ static PFN_CreateDIBSection    _gl_CreateDIBSection   = NULL;
 static PFN_SelectObject        _gl_SelectObject       = NULL;
 static PFN_DeleteObject        _gl_DeleteObject       = NULL;
 static PFN_BitBlt              _gl_BitBlt             = NULL;
+static PFN_StretchBlt          _gl_StretchBlt         = NULL;
+static PFN_SetStretchBltMode   _gl_SetStretchBltMode  = NULL;
 static PFN_CreateFontW         _gl_CreateFontW        = NULL;
 static PFN_TextOutW            _gl_TextOutW           = NULL;
 static PFN_SetTextColor        _gl_SetTextColor       = NULL;
@@ -811,6 +823,8 @@ static int _gamelib_load_apis()
     _gl_SelectObject      = _gamelib_load_proc<PFN_SelectObject>(hGdi32, "SelectObject");
     _gl_DeleteObject      = _gamelib_load_proc<PFN_DeleteObject>(hGdi32, "DeleteObject");
     _gl_BitBlt            = _gamelib_load_proc<PFN_BitBlt>(hGdi32, "BitBlt");
+    _gl_StretchBlt        = _gamelib_load_proc<PFN_StretchBlt>(hGdi32, "StretchBlt");
+    _gl_SetStretchBltMode = _gamelib_load_proc<PFN_SetStretchBltMode>(hGdi32, "SetStretchBltMode");
     _gl_CreateFontW       = _gamelib_load_proc<PFN_CreateFontW>(hGdi32, "CreateFontW");
     _gl_TextOutW          = _gamelib_load_proc<PFN_TextOutW>(hGdi32, "TextOutW");
     _gl_SetTextColor      = _gamelib_load_proc<PFN_SetTextColor>(hGdi32, "SetTextColor");
@@ -828,7 +842,8 @@ static int _gamelib_load_apis()
     if (!_gl_SetDIBitsToDevice || !_gl_GetStockObject ||
         !_gl_CreateCompatibleDC || !_gl_DeleteDC ||
         !_gl_CreateDIBSection || !_gl_SelectObject || !_gl_DeleteObject ||
-        !_gl_BitBlt || !_gl_CreateFontW || !_gl_TextOutW ||
+        !_gl_BitBlt || !_gl_StretchBlt || !_gl_SetStretchBltMode ||
+        !_gl_CreateFontW || !_gl_TextOutW ||
         !_gl_SetTextColor || !_gl_SetBkMode || !_gl_GetTextExtentPoint32W ||
         !_gl_timeBeginPeriod  || !_gl_timeEndPeriod ||
         !_gl_PlaySoundW       || !_gl_mciSendStringW) {
@@ -837,6 +852,7 @@ static int _gamelib_load_apis()
         _gl_CreateCompatibleDC = NULL; _gl_DeleteDC = NULL;
         _gl_CreateDIBSection = NULL; _gl_SelectObject = NULL;
         _gl_DeleteObject = NULL; _gl_BitBlt = NULL;
+        _gl_StretchBlt = NULL; _gl_SetStretchBltMode = NULL;
         _gl_CreateFontW = NULL; _gl_TextOutW = NULL;
         _gl_SetTextColor = NULL; _gl_SetBkMode = NULL;
         _gl_GetTextExtentPoint32W = NULL; _gl_GdiFlush = NULL;
@@ -1040,10 +1056,13 @@ GameLib::GameLib()
     _mouseVisible = true;
     _width = 0;
     _height = 0;
+    _windowWidth = 0;
+    _windowHeight = 0;
     _clipX = 0;
     _clipY = 0;
     _clipW = 0;
     _clipH = 0;
+    _resizable = false;
     _framebuffer = NULL;
     _memDC = NULL;
     _dibSection = NULL;
@@ -1118,10 +1137,62 @@ void GameLib::_DestroyGraphicsResources()
         _memDC = NULL;
     }
     _framebuffer = NULL;
+    _windowWidth = 0;
+    _windowHeight = 0;
     _clipX = 0;
     _clipY = 0;
     _clipW = 0;
     _clipH = 0;
+}
+
+
+void GameLib::_PresentFrame(HDC hdc) const
+{
+    if (!hdc || !_memDC || _width <= 0 || _height <= 0 || _windowWidth <= 0 || _windowHeight <= 0) {
+        return;
+    }
+
+    if (_windowWidth == _width && _windowHeight == _height) {
+        _gl_BitBlt(hdc, 0, 0, _width, _height, _memDC, 0, 0, 0x00CC0020 /* SRCCOPY */);
+        return;
+    }
+
+    _gl_SetStretchBltMode(hdc, COLORONCOLOR);
+    _gl_StretchBlt(hdc, 0, 0, _windowWidth, _windowHeight,
+                   _memDC, 0, 0, _width, _height, 0x00CC0020 /* SRCCOPY */);
+}
+
+
+void GameLib::_UpdateClientSize()
+{
+    if (!_hwnd) {
+        _windowWidth = 0;
+        _windowHeight = 0;
+        return;
+    }
+
+    RECT clientRC;
+    ::GetClientRect(_hwnd, &clientRC);
+    _windowWidth = clientRC.right - clientRC.left;
+    _windowHeight = clientRC.bottom - clientRC.top;
+}
+
+
+void GameLib::_SetMouseFromWindowCoords(int x, int y)
+{
+    if (_width <= 0 || _height <= 0 || _windowWidth <= 0 || _windowHeight <= 0) {
+        _mouseX = 0;
+        _mouseY = 0;
+        return;
+    }
+
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= _windowWidth) x = _windowWidth - 1;
+    if (y >= _windowHeight) y = _windowHeight - 1;
+
+    _mouseX = (int)(((long long)x * (long long)_width) / (long long)_windowWidth);
+    _mouseY = (int)(((long long)y * (long long)_height) / (long long)_windowHeight);
 }
 
 
@@ -1252,6 +1323,13 @@ LRESULT CALLBACK GameLib::_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
         }
         return DefWindowProcW(hWnd, msg, wParam, lParam);
 
+    case WM_SIZE:
+        if (self) {
+            self->_windowWidth = (int)LOWORD(lParam);
+            self->_windowHeight = (int)HIWORD(lParam);
+        }
+        return 0;
+
     case MM_MCINOTIFY:
         if (!self || !self->_musicIsMidi) return 0;
 
@@ -1298,8 +1376,8 @@ LRESULT CALLBACK GameLib::_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 
     case WM_MOUSEMOVE:
         if (self) {
-            self->_mouseX = (int)(short)LOWORD(lParam);
-            self->_mouseY = (int)(short)HIWORD(lParam);
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
         }
         return 0;
 
@@ -1320,37 +1398,59 @@ LRESULT CALLBACK GameLib::_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
             pt.x = (int)(short)LOWORD(lParam);
             pt.y = (int)(short)HIWORD(lParam);
             ScreenToClient(hWnd, &pt);
-            self->_mouseX = pt.x;
-            self->_mouseY = pt.y;
+            self->_SetMouseFromWindowCoords(pt.x, pt.y);
             self->_mouseWheelDelta += (int)(short)HIWORD(wParam);
         }
         return 0;
 
     case WM_LBUTTONDOWN:
-        if (self) self->_mouseButtons[MOUSE_LEFT] = 1;
+        if (self) {
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
+            self->_mouseButtons[MOUSE_LEFT] = 1;
+        }
         return 0;
     case WM_LBUTTONUP:
-        if (self) self->_mouseButtons[MOUSE_LEFT] = 0;
+        if (self) {
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
+            self->_mouseButtons[MOUSE_LEFT] = 0;
+        }
         return 0;
     case WM_RBUTTONDOWN:
-        if (self) self->_mouseButtons[MOUSE_RIGHT] = 1;
+        if (self) {
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
+            self->_mouseButtons[MOUSE_RIGHT] = 1;
+        }
         return 0;
     case WM_RBUTTONUP:
-        if (self) self->_mouseButtons[MOUSE_RIGHT] = 0;
+        if (self) {
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
+            self->_mouseButtons[MOUSE_RIGHT] = 0;
+        }
         return 0;
     case WM_MBUTTONDOWN:
-        if (self) self->_mouseButtons[MOUSE_MIDDLE] = 1;
+        if (self) {
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
+            self->_mouseButtons[MOUSE_MIDDLE] = 1;
+        }
         return 0;
     case WM_MBUTTONUP:
-        if (self) self->_mouseButtons[MOUSE_MIDDLE] = 0;
+        if (self) {
+            self->_SetMouseFromWindowCoords((int)(short)LOWORD(lParam),
+                                            (int)(short)HIWORD(lParam));
+            self->_mouseButtons[MOUSE_MIDDLE] = 0;
+        }
         return 0;
 
     case WM_PAINT: {
             PAINTSTRUCT ps;
             BeginPaint(hWnd, &ps);
-            if (self && self->_memDC && _gl_BitBlt) {
-                _gl_BitBlt(ps.hdc, 0, 0, self->_width, self->_height,
-                           self->_memDC, 0, 0, 0x00CC0020 /* SRCCOPY */);
+            if (self) {
+                self->_PresentFrame(ps.hdc);
             }
             EndPaint(hWnd, &ps);
         }
@@ -1401,7 +1501,7 @@ void GameLib::_DispatchMessages()
 //---------------------------------------------------------------------
 // Open: create window and initialize
 //---------------------------------------------------------------------
-int GameLib::Open(int width, int height, const char *title, bool center)
+int GameLib::Open(int width, int height, const char *title, bool center, bool resizable)
 {
     // Validate dimensions
     if (width <= 0 || height <= 0 || width > 16384 || height > 16384) return -7;
@@ -1423,6 +1523,9 @@ int GameLib::Open(int width, int height, const char *title, bool center)
 
     _width = width;
     _height = height;
+    _windowWidth = width;
+    _windowHeight = height;
+    _resizable = resizable;
     _title = title ? title : "";
     _closing = false;
     _active = true;
@@ -1459,6 +1562,9 @@ int GameLib::Open(int width, int height, const char *title, bool center)
 
     // Calculate window size (make client area equal to width x height)
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    if (resizable) {
+        style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
+    }
     RECT rc = { 0, 0, width, height };
     AdjustWindowRect(&rc, style, FALSE);
     int ww = rc.right - rc.left;
@@ -1525,6 +1631,8 @@ int GameLib::Open(int width, int height, const char *title, bool center)
         }
     }
 
+    _UpdateClientSize();
+
     ShowWindow(_hwnd, SW_SHOW);
     UpdateWindow(_hwnd);
     ShowMouse(_mouseVisible);
@@ -1582,13 +1690,6 @@ void GameLib::Update()
 {
     if (!_hwnd || !_framebuffer || !_memDC) return;
 
-    // Draw frame buffer to window using BitBlt (faster than SetDIBitsToDevice)
-    HDC hdc = ::GetDC(_hwnd);
-    if (hdc) {
-        _gl_BitBlt(hdc, 0, 0, _width, _height, _memDC, 0, 0, 0x00CC0020 /* SRCCOPY */);
-        ::ReleaseDC(_hwnd, hdc);
-    }
-
     // Save previous frame key/mouse state (for edge detection)
     memcpy(_keys_prev, _keys, sizeof(_keys));
     memcpy(_mouseButtons_prev, _mouseButtons, sizeof(_mouseButtons));
@@ -1596,6 +1697,13 @@ void GameLib::Update()
 
     // Dispatch messages
     _DispatchMessages();
+
+    // Draw frame buffer to window using BitBlt when sizes match, otherwise stretch to fill.
+    HDC hdc = ::GetDC(_hwnd);
+    if (hdc) {
+        _PresentFrame(hdc);
+        ::ReleaseDC(_hwnd, hdc);
+    }
 
     // Update time with QueryPerformanceCounter.
     uint64_t now = _gamelib_query_performance_counter();
@@ -1683,6 +1791,38 @@ double GameLib::GetTime() const
 }
 int GameLib::GetWidth() const { return _width; }
 int GameLib::GetHeight() const { return _height; }
+
+
+void GameLib::WinResize(int width, int height)
+{
+    if (!_hwnd || width <= 0 || height <= 0) return;
+
+    if (_resizable && IsZoomed(_hwnd)) {
+        ShowWindow(_hwnd, SW_RESTORE);
+    }
+
+    RECT winRC;
+    RECT clientRC;
+    if (!::GetWindowRect(_hwnd, &winRC) || !::GetClientRect(_hwnd, &clientRC)) return;
+
+    int currentClientW = clientRC.right - clientRC.left;
+    int currentClientH = clientRC.bottom - clientRC.top;
+    int winW = winRC.right - winRC.left;
+    int winH = winRC.bottom - winRC.top;
+    int targetWinW = winW + (width - currentClientW);
+    int targetWinH = winH + (height - currentClientH);
+
+    ::MoveWindow(_hwnd, winRC.left, winRC.top, targetWinW, targetWinH, TRUE);
+    _UpdateClientSize();
+}
+
+
+void GameLib::SetMaximized(bool maximized)
+{
+    if (!_hwnd || !_resizable) return;
+    ShowWindow(_hwnd, maximized ? SW_MAXIMIZE : SW_RESTORE);
+    _UpdateClientSize();
+}
 
 
 //---------------------------------------------------------------------
