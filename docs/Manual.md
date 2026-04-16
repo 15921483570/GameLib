@@ -123,6 +123,33 @@
 | `ClearTilemap(mapId, tileId = -1)`               | 用指定瓦片填满整张地图（默认 `-1` 为清空） |
 | `DrawTilemap(mapId, x, y, flags)`                | 绘制地图（支持 ColorKey/Alpha） |
 
+### 场景管理
+
+| 函数                  | 说明                                    |
+| --------------------- | --------------------------------------- |
+| `SetScene(scene)`     | 切换场景（下一帧生效）                  |
+| `GetScene()`          | 获取当前场景                            |
+| `IsSceneChanged()`    | 本帧是否刚进入新场景（仅第一帧 `true`） |
+| `GetPreviousScene()`  | 获取切换前的场景                        |
+
+场景用整数标识，推荐用 `enum` 定义（如 `enum { SCENE_MENU, SCENE_PLAY, SCENE_GAMEOVER }`）。`SetScene()` 不会立即生效，而是在下一次 `Update()` 时切换——这样避免了同一帧内输入穿透到新场景。`IsSceneChanged()` 在新场景的第一帧返回 `true`，之后返回 `false`。初始场景为 `0`，第一帧的 `IsSceneChanged()` 也是 `true`（方便在场景 0 的首帧做初始化）。调用 `SetScene(GetScene())` 可以重启当前场景（会再次触发一次 `IsSceneChanged() == true`）。
+
+### 存档读写
+
+| 函数                                    | 说明                                               |
+| --------------------------------------- | -------------------------------------------------- |
+| `SaveInt(filename, key, value)`         | 保存整数（静态函数）                               |
+| `SaveFloat(filename, key, value)`       | 保存浮点数（静态函数）                             |
+| `SaveString(filename, key, value)`      | 保存字符串（静态函数）                             |
+| `LoadInt(filename, key, defaultValue)`  | 读取整数，文件或 key 不存在时返回 `defaultValue`   |
+| `LoadFloat(filename, key, defaultValue)` | 读取浮点数，不存在时返回 `defaultValue`           |
+| `LoadString(filename, key, defaultValue)` | 读取字符串，不存在时返回 `defaultValue`          |
+| `HasSaveKey(filename, key)`             | 判断存档文件中是否存在指定 key                     |
+| `DeleteSaveKey(filename, key)`          | 从存档中删除一个 key                               |
+| `DeleteSave(filename)`                  | 删除整个存档文件                                   |
+
+所有存档函数都是 `static` 的，可以通过 `GameLib::SaveInt(...)` 直接调用，不需要 GameLib 实例。存档文件是纯文本 `key=value` 格式（第一行固定 `GAMELIB_SAVE` 头），可以用记事本打开查看。字符串值中的换行符会自动转义为 `\n`、反斜杠转义为 `\\`，读取时自动还原。`LoadString` 返回的指针指向内部静态缓冲区（最大 1023 字符），在下次调用 `LoadString` 前有效。
+
 ### 工具
 
 | 函数                                      | 说明         |

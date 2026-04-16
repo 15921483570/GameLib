@@ -4,7 +4,7 @@
 
 `GameLib.SDL.h` 是 `GameLib.h` 的 **独立 SDL 版产品线**，目标是在 **Windows / macOS / Linux** 上提供尽量一致的教学型 2D 游戏开发体验。
 
-**当前版本**: `1.5.0`
+**当前版本**: `1.6.0`
 
 它不是对现有 `GameLib.h` 的直接替换，也不是在原头文件中塞入大量 `#ifdef SDL` 的混合版本，而是一份 **单独维护的跨平台单头文件**。其公开使用方式尽量保持与 `GameLib.h` 一致：
 
@@ -27,7 +27,7 @@ int main() {
 
 本文档既用于固定 `GameLib.SDL.h` 的定位、依赖、内部架构与兼容边界，也用于同步当前实现状态、已知差异与后续演进边界。
 
-当前 `0.4.3` 已加入与 Win32 主线对齐的 Clip Rectangle 裁剪接口；所有最终写入 `_framebuffer` 的绘制路径都会受当前裁剪矩形约束，空裁剪区域时统一不绘制；`DrawLine()` 会在 Bresenham 前先裁剪线段，`LoadSprite()` 也会拒绝超出 `16384` 限制的图片。
+当前 `1.6.0` 已加入与 Win32 主线对齐的 Clip Rectangle 裁剪接口；所有最终写入 `_framebuffer` 的绘制路径都会受当前裁剪矩形约束，空裁剪区域时统一不绘制；`DrawLine()` 会在 Bresenham 前先裁剪线段，`LoadSprite()` 也会拒绝超出 `16384` 限制的图片。最新还加入了与 Win32 版一致的场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`）和存档读写（`SaveInt`/`LoadInt` 等 9 个 static 函数，纯文本 `key=value` 格式；SDL 版使用标准 `fopen()` 替代 Win32 版的 `_gamelib_fopen_utf8()`）。
 
 若你只想快速查看 SDL 版的编译命令、依赖开关和当前限制，可直接看仓库根目录的 `SDL2PORT.md`。
 
@@ -328,7 +328,9 @@ GameLib.SDL.h
 │   ├── 输入系统
 │   ├── 音频系统（SDL_mixer）
 │   ├── Tilemap
-│   └── 工具函数
+│   ├── 工具函数
+│   ├── 场景管理 (SetScene, GetScene, IsSceneChanged, GetPreviousScene)
+│   └── 存档读写 (SaveInt/Float/String, LoadInt/Float/String, HasSaveKey, DeleteSaveKey, DeleteSave)
 ├── #endif
 └── #endif
 ```
@@ -365,6 +367,8 @@ GameLib.SDL.h
 - `CreateTilemap` / `SaveTilemap` / `LoadTilemap` / `FreeTilemap` / `SetTile` / `GetTile` / `GetTilemapCols` / `GetTilemapRows`
 - `GetTileSize` / `WorldToTileCol` / `WorldToTileRow` / `GetTileAtPixel`
 - `FillTileRect` / `ClearTilemap` / `DrawTilemap`
+- `SetScene` / `GetScene` / `IsSceneChanged` / `GetPreviousScene`
+- `SaveInt` / `SaveFloat` / `SaveString` / `LoadInt` / `LoadFloat` / `LoadString` / `HasSaveKey` / `DeleteSaveKey` / `DeleteSave`
 
 ### 6.2 保持名称，但允许实现语义调整的 API
 
@@ -409,6 +413,17 @@ GameLib.SDL.h
 - SDL 版使用 `SDL_ShowSimpleMessageBox()` 或 `SDL_ShowMessageBox()` 实现，按钮布局与 Windows 版保持 `MESSAGEBOX_OK` / `MESSAGEBOX_YESNO` 两档。
 - 若当前尚未初始化视频子系统，允许临时初始化 `SDL_INIT_VIDEO` 仅用于显示消息框。
 - 若当前窗口处于隐藏鼠标状态，显示对话框期间应临时恢复鼠标可见，避免 `YES/NO` 对话框在无光标时难以操作。
+
+#### 场景管理（`SetScene` / `GetScene` / `IsSceneChanged` / `GetPreviousScene`）
+
+- 场景管理在 SDL 版中的语义与 Win32 版完全一致，无实现差异。
+- 延迟生效机制、初始帧 `_sceneChanged = true`、`SetScene(GetScene())` 重启场景等行为完全对齐。
+
+#### 存档读写（`SaveInt` / `LoadInt` / `SaveString` 等）
+
+- API 签名和语义与 Win32 版完全一致，所有存档函数仍为 `static`。
+- 文件格式相同：`GAMELIB_SAVE` 头 + `key=value` 行，字符串转义规则不变。
+- **唯一实现差异**：SDL 版使用标准 `fopen()` 打开文件，而 Win32 版使用 `_gamelib_fopen_utf8()`。这意味着在 Windows + MinGW 环境下，如果存档路径包含非 ASCII 字符（如中文目录），SDL 版可能无法正确打开文件。在 macOS / Linux 上，系统 locale 通常默认 UTF-8，不受此限制。
 
 ### 6.3 键盘常量策略
 
@@ -864,6 +879,13 @@ int _wavChannel;
 Mix_Music *_currentMusic;
 bool _musicPlaying;
 
+// 场景状态
+int _scene;
+int _pendingScene;
+bool _hasPendingScene;
+bool _sceneChanged;
+int _previousScene;
+
 // 随机数初始化标志
 static bool _srandDone;
 ```
@@ -1031,3 +1053,6 @@ static bool _srandDone;
 - SDL 头文件包含和扩展库检测放在类声明之前、不受 `GAMELIB_SDL_IMPLEMENTATION` 保护；这样类声明直接使用真实 SDL 类型，不再依赖跨平台不一致的前向声明。条件前向声明仅在扩展头未找到时（`GAMELIB_SDL_HAS_* = 0`）才会生效，且使用 SDL 官方 typedef tag 约定（如 `_TTF_Font`、`_Mix_Music`），避免与后续外部包含冲突。
 - Tilemap 不再缓存 `tilesetTileCount`，而是由 `DrawTilemap()` 在 memcpy 风险点前按 live sprite 尺寸即时计算 `tileCount`；这样既减少内部状态，又保持 sprite 槽位复用后的内存安全。
 - Windows DPI 默认选择 `unaware`，不是因为它技术上更先进，而是因为它更符合教学场景：同样一个 `800x600` 示例换到高分屏机器上不会显得过小。
+- 场景管理的延迟生效机制（pending → 下一帧 `Update()` 应用）与 Win32 版完全一致，不引入 SDL 特有的事件时序差异。
+- 存档读写 SDL 版使用标准 `fopen()` 而非 Win32 版的 `_gamelib_fopen_utf8()`；这是因为 SDL 产品线本身不携带 Win32 宽字符路径转换逻辑，而 macOS / Linux 系统 locale 通常默认 UTF-8，标准 `fopen()` 即可正确处理。在 Windows + MinGW 下若路径含非 ASCII 字符，可能需要用户自行确保 locale 或使用 ASCII 路径。
+- 存档实现放在文件末尾 `#endif` 前，与 Win32 版保持一致的代码组织策略，避免在渲染代码中间插入大段无关实现。

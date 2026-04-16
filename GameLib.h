@@ -57,7 +57,7 @@
 
 // Version Info
 #define GAMELIB_VERSION_MAJOR     1
-#define GAMELIB_VERSION_MINOR     5
+#define GAMELIB_VERSION_MINOR     6
 #define GAMELIB_VERSION_PATCH     0
 
 
@@ -425,6 +425,24 @@ public:
     void StopMusic();
     bool IsMusicPlaying() const;
 
+    // -------- Scene Management --------
+    void SetScene(int scene);
+    int GetScene() const;
+    bool IsSceneChanged() const;
+    int GetPreviousScene() const;
+
+    // -------- Save / Load Data --------
+    static bool SaveInt(const char *filename, const char *key, int value);
+    static bool SaveFloat(const char *filename, const char *key, float value);
+    static bool SaveString(const char *filename, const char *key, const char *value);
+    static int LoadInt(const char *filename, const char *key, int defaultValue = 0);
+    static float LoadFloat(const char *filename, const char *key, float defaultValue = 0.0f);
+    static const char *LoadString(const char *filename, const char *key,
+                                  const char *defaultValue = "");
+    static bool HasSaveKey(const char *filename, const char *key);
+    static bool DeleteSaveKey(const char *filename, const char *key);
+    static bool DeleteSave(const char *filename);
+
     // -------- Helper Functions --------
     static int Random(int minVal, int maxVal);
     static bool RectOverlap(int x1, int y1, int w1, int h1,
@@ -531,6 +549,13 @@ private:
     bool _musicLoop;
     bool _musicIsMidi;
     std::wstring _musicAlias;
+
+    // scene state
+    int _scene;
+    int _pendingScene;
+    bool _hasPendingScene;
+    bool _sceneChanged;
+    int _previousScene;
 
     // random seed initialized flag
     static bool _srandDone;
@@ -1040,6 +1065,11 @@ GameLib::GameLib()
     _musicPlaying = false;
     _musicLoop = false;
     _musicIsMidi = false;
+    _scene = 0;
+    _pendingScene = 0;
+    _hasPendingScene = false;
+    _sceneChanged = true;
+    _previousScene = 0;
     {
         char aliasBuffer[64];
         unsigned long long aliasValue = (unsigned long long)(uintptr_t)this;
@@ -1577,6 +1607,16 @@ void GameLib::Update()
         _fpsAccum = 0.0;
         _fpsTimeCounter = now;
         _UpdateTitleFps();
+    }
+
+    // Process pending scene change
+    if (_hasPendingScene) {
+        _previousScene = _scene;
+        _scene = _pendingScene;
+        _sceneChanged = true;
+        _hasPendingScene = false;
+    } else {
+        _sceneChanged = false;
     }
 }
 
@@ -3376,6 +3416,16 @@ float GameLib::Distance(int x1, int y1, int x2, int y2)
     return sqrtf(dx * dx + dy * dy);
 }
 
+void GameLib::SetScene(int scene)
+{
+    _pendingScene = scene;
+    _hasPendingScene = true;
+}
+
+int GameLib::GetScene() const { return _scene; }
+bool GameLib::IsSceneChanged() const { return _sceneChanged; }
+int GameLib::GetPreviousScene() const { return _previousScene; }
+
 
 //=====================================================================
 // Grid Helpers
@@ -3746,6 +3796,218 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
             }
         }
     }
+}
+
+
+//=====================================================================
+// Save / Load Data
+//=====================================================================
+
+#define _GAMELIB_SAVE_MAGIC      "GAMELIB_SAVE"
+#define _GAMELIB_SAVE_MAX_ENTRIES 256
+#define _GAMELIB_SAVE_MAX_KEY    64
+#define _GAMELIB_SAVE_MAX_VALUE  1024
+#define _GAMELIB_SAVE_MAX_LINE   1200
+
+struct _gamelib_save_entry {
+    char key[_GAMELIB_SAVE_MAX_KEY];
+    char value[_GAMELIB_SAVE_MAX_VALUE];
+};
+
+static void _gamelib_save_escape(const char *src, char *dst, int dstSize)
+{
+    int j = 0;
+    for (int i = 0; src[i] && j < dstSize - 2; i++) {
+        if (src[i] == '\\')      { dst[j++] = '\\'; dst[j++] = '\\'; }
+        else if (src[i] == '\n') { dst[j++] = '\\'; dst[j++] = 'n'; }
+        else                     { dst[j++] = src[i]; }
+    }
+    dst[j] = '\0';
+}
+
+static void _gamelib_save_unescape(const char *src, char *dst, int dstSize)
+{
+    int j = 0;
+    for (int i = 0; src[i] && j < dstSize - 1; i++) {
+        if (src[i] == '\\' && src[i + 1] == '\\')     { dst[j++] = '\\'; i++; }
+        else if (src[i] == '\\' && src[i + 1] == 'n')  { dst[j++] = '\n'; i++; }
+        else                                            { dst[j++] = src[i]; }
+    }
+    dst[j] = '\0';
+}
+
+static int _gamelib_save_find_key(const _gamelib_save_entry *entries, int count,
+                                  const char *key)
+{
+    for (int i = 0; i < count; i++) {
+        if (strcmp(entries[i].key, key) == 0) return i;
+    }
+    return -1;
+}
+
+static int _gamelib_save_read_all(const char *filename,
+                                  _gamelib_save_entry *entries, int maxEntries)
+{
+    FILE *fp = _gamelib_fopen_utf8(filename, L"r");
+    if (!fp) return 0;
+
+    char line[_GAMELIB_SAVE_MAX_LINE];
+    int count = 0;
+
+    // Read and verify magic header
+    if (!fgets(line, sizeof(line), fp)) { fclose(fp); return 0; }
+    // Strip trailing newline/CR
+    size_t len = strlen(line);
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) line[--len] = '\0';
+    if (strcmp(line, _GAMELIB_SAVE_MAGIC) != 0) { fclose(fp); return 0; }
+
+    while (count < maxEntries && fgets(line, sizeof(line), fp)) {
+        len = strlen(line);
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) line[--len] = '\0';
+        if (len == 0) continue;
+
+        // Find first '='
+        char *eq = strchr(line, '=');
+        if (!eq) continue;
+
+        size_t keyLen = (size_t)(eq - line);
+        if (keyLen == 0 || keyLen >= _GAMELIB_SAVE_MAX_KEY) continue;
+
+        strncpy(entries[count].key, line, keyLen);
+        entries[count].key[keyLen] = '\0';
+        strncpy(entries[count].value, eq + 1, _GAMELIB_SAVE_MAX_VALUE - 1);
+        entries[count].value[_GAMELIB_SAVE_MAX_VALUE - 1] = '\0';
+        count++;
+    }
+
+    fclose(fp);
+    return count;
+}
+
+static bool _gamelib_save_write_all(const char *filename,
+                                    const _gamelib_save_entry *entries, int count)
+{
+    FILE *fp = _gamelib_fopen_utf8(filename, L"w");
+    if (!fp) return false;
+
+    fprintf(fp, "%s\n", _GAMELIB_SAVE_MAGIC);
+    for (int i = 0; i < count; i++) {
+        fprintf(fp, "%s=%s\n", entries[i].key, entries[i].value);
+    }
+    fclose(fp);
+    return true;
+}
+
+static bool _gamelib_save_write_key(const char *filename, const char *key,
+                                    const char *rawValue)
+{
+    if (!filename || !key || !key[0] || !rawValue) return false;
+
+    _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
+    int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
+
+    int idx = _gamelib_save_find_key(entries, count, key);
+    if (idx >= 0) {
+        strncpy(entries[idx].value, rawValue, _GAMELIB_SAVE_MAX_VALUE - 1);
+        entries[idx].value[_GAMELIB_SAVE_MAX_VALUE - 1] = '\0';
+    } else {
+        if (count >= _GAMELIB_SAVE_MAX_ENTRIES) return false;
+        strncpy(entries[count].key, key, _GAMELIB_SAVE_MAX_KEY - 1);
+        entries[count].key[_GAMELIB_SAVE_MAX_KEY - 1] = '\0';
+        strncpy(entries[count].value, rawValue, _GAMELIB_SAVE_MAX_VALUE - 1);
+        entries[count].value[_GAMELIB_SAVE_MAX_VALUE - 1] = '\0';
+        count++;
+    }
+
+    return _gamelib_save_write_all(filename, entries, count);
+}
+
+static const char *_gamelib_save_read_key(const char *filename, const char *key)
+{
+    if (!filename || !key || !key[0]) return NULL;
+
+    static _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
+    int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
+
+    int idx = _gamelib_save_find_key(entries, count, key);
+    if (idx < 0) return NULL;
+    return entries[idx].value;
+}
+
+bool GameLib::SaveInt(const char *filename, const char *key, int value)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%d", value);
+    return _gamelib_save_write_key(filename, key, buf);
+}
+
+bool GameLib::SaveFloat(const char *filename, const char *key, float value)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", value);
+    return _gamelib_save_write_key(filename, key, buf);
+}
+
+bool GameLib::SaveString(const char *filename, const char *key, const char *value)
+{
+    if (!value) return false;
+    char escaped[_GAMELIB_SAVE_MAX_VALUE];
+    _gamelib_save_escape(value, escaped, _GAMELIB_SAVE_MAX_VALUE);
+    return _gamelib_save_write_key(filename, key, escaped);
+}
+
+int GameLib::LoadInt(const char *filename, const char *key, int defaultValue)
+{
+    const char *raw = _gamelib_save_read_key(filename, key);
+    if (!raw) return defaultValue;
+    return atoi(raw);
+}
+
+float GameLib::LoadFloat(const char *filename, const char *key, float defaultValue)
+{
+    const char *raw = _gamelib_save_read_key(filename, key);
+    if (!raw) return defaultValue;
+    return (float)atof(raw);
+}
+
+const char *GameLib::LoadString(const char *filename, const char *key,
+                                const char *defaultValue)
+{
+    static char _saveStringBuf[_GAMELIB_SAVE_MAX_VALUE];
+    const char *raw = _gamelib_save_read_key(filename, key);
+    if (!raw) return defaultValue;
+    _gamelib_save_unescape(raw, _saveStringBuf, _GAMELIB_SAVE_MAX_VALUE);
+    return _saveStringBuf;
+}
+
+bool GameLib::HasSaveKey(const char *filename, const char *key)
+{
+    return _gamelib_save_read_key(filename, key) != NULL;
+}
+
+bool GameLib::DeleteSaveKey(const char *filename, const char *key)
+{
+    if (!filename || !key || !key[0]) return false;
+
+    _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
+    int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
+
+    int idx = _gamelib_save_find_key(entries, count, key);
+    if (idx < 0) return false;
+
+    // Remove by shifting
+    for (int i = idx; i < count - 1; i++) {
+        entries[i] = entries[i + 1];
+    }
+    count--;
+
+    return _gamelib_save_write_all(filename, entries, count);
+}
+
+bool GameLib::DeleteSave(const char *filename)
+{
+    if (!filename) return false;
+    return remove(filename) == 0;
 }
 
 

@@ -4,10 +4,10 @@
 
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
-**当前版本**: `1.5.0`
+**当前版本**: `1.6.0`
 **最后修改**: 2026/04/16
 
-当前 `1.5.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、Clip Rectangle 裁剪矩形、裁剪后的 `DrawLine()`、`LoadSprite()` 的超大尺寸拒绝、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则，以及最近调整后的 Tilemap 语义：不再缓存 `tilesetTileCount`，允许地图数据保存超出当前 tileset 范围的非负 `tileId`，并在 `DrawTilemap()` 绘制时按 live tileset 尺寸跳过不可用瓦片。
+当前 `1.6.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、Clip Rectangle 裁剪矩形、裁剪后的 `DrawLine()`、`LoadSprite()` 的超大尺寸拒绝、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则，以及最近调整后的 Tilemap 语义：不再缓存 `tilesetTileCount`，允许地图数据保存超出当前 tileset 范围的非负 `tileId`，并在 `DrawTilemap()` 绘制时按 live tileset 尺寸跳过不可用瓦片），以及新增的场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`，延迟到下一帧生效）和存档读写（`SaveInt`/`LoadInt`/`SaveFloat`/`LoadFloat`/`SaveString`/`LoadString`/`HasSaveKey`/`DeleteSaveKey`/`DeleteSave`，全部 `static`，纯文本 `key=value` 格式）。
 
 ---
 
@@ -87,8 +87,10 @@ GameLib.h
 │       ├── 输入系统 (Key, Mouse, Released, Wheel, Active)
 │       ├── 声音 (Beep, WAV, Music/MCI)
 │       ├── 工具函数 (Random, 碰撞检测, 距离)
+│       ├── 场景管理 (SetScene, GetScene, IsSceneChanged, GetPreviousScene)
 │       ├── 网格辅助 (DrawGrid, FillCell)
-│       └── Tilemap 系统 (Create, Free, Set/Get, Convert, Fill/Clear, Draw)
+│       ├── Tilemap 系统 (Create, Free, Set/Get, Convert, Fill/Clear, Draw)
+│       └── 存档读写 (SaveInt/Float/String, LoadInt/Float/String, HasSaveKey, DeleteSaveKey, DeleteSave)
 ├── #endif // GAMELIB_IMPLEMENTATION
 └── #endif // GAMELIB_H
 ```
@@ -280,6 +282,13 @@ bool _musicPlaying;     // 是否正在播放 MCI 音乐
 bool _musicLoop;        // 当前音乐是否应循环
 bool _musicIsMidi;      // 当前音乐是否走 MIDI notify 重播路径
 std::wstring _musicAlias; // 当前实例使用的 MCI alias
+
+// 场景状态
+int _scene;              // 当前场景编号
+int _pendingScene;       // 待切换场景编号
+bool _hasPendingScene;   // 是否有待处理的场景切换
+bool _sceneChanged;      // 本帧是否刚切换了场景
+int _previousScene;      // 切换前的场景编号
 
 // 随机数
 static bool _srandDone; // srand 是否已初始化
@@ -749,6 +758,96 @@ static bool _srandDone; // srand 是否已初始化
 - 每个瓦片做像素级边缘裁剪，处理当前裁剪矩形边界上的半瓦片
 - 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 `memcpy`；其他情况复用 `_DrawSpriteAreaFast`
 
+### 6.12 场景管理
+
+#### `void SetScene(int scene)`
+- 设置下一帧要切换到的场景编号
+- 不会立即生效，而是在下一次 `Update()` 时处理——这样避免了同一帧内输入穿透到新场景
+- 可以通过 `SetScene(GetScene())` 重启当前场景（会再次触发 `IsSceneChanged() == true`）
+
+#### `int GetScene() const`
+- 返回当前场景编号
+
+#### `bool IsSceneChanged() const`
+- 返回本帧是否刚切换到了新场景
+- 新场景的第一帧返回 `true`，之后返回 `false`
+- 初始场景为 `0`，程序启动后第一帧的 `IsSceneChanged()` 也是 `true`（方便在场景 0 的首帧做初始化）
+
+#### `int GetPreviousScene() const`
+- 返回切换前的场景编号
+- 在首帧或未发生过切换时返回 `0`
+
+#### 场景切换时序
+
+场景切换使用延迟生效机制：
+
+1. 用户调用 `SetScene(newScene)` → 记录到 `_pendingScene`
+2. 下一次 `Update()` 执行时 → `_previousScene = _scene; _scene = _pendingScene; _sceneChanged = true`
+3. 该帧 `IsSceneChanged()` 返回 `true`
+4. 再下一次 `Update()` → `_sceneChanged = false`
+
+场景用整数标识，推荐用 `enum` 定义（如 `enum { SCENE_MENU, SCENE_PLAY, SCENE_GAMEOVER }`）。
+
+### 6.13 存档读写（static）
+
+所有存档函数都是 `static` 的，可以通过 `GameLib::SaveInt(...)` 直接调用，不需要 GameLib 实例。
+
+#### `static bool SaveInt(const char *filename, const char *key, int value)`
+- 将整数写入存档文件的指定 key
+- 若文件不存在则创建；若 key 已存在则覆盖
+- 成功返回 `true`
+
+#### `static bool SaveFloat(const char *filename, const char *key, float value)`
+- 将浮点数写入存档文件的指定 key（以 `%g` 格式存储）
+- 若文件不存在则创建；若 key 已存在则覆盖
+- 成功返回 `true`
+
+#### `static bool SaveString(const char *filename, const char *key, const char *value)`
+- 将字符串写入存档文件的指定 key
+- 字符串值中的 `\` 转义为 `\\`，`\n` 转义为 `\n`，读取时自动还原
+- 成功返回 `true`
+
+#### `static int LoadInt(const char *filename, const char *key, int defaultValue = 0)`
+- 从存档文件读取整数值
+- 文件不存在、key 不存在或解析失败时返回 `defaultValue`
+
+#### `static float LoadFloat(const char *filename, const char *key, float defaultValue = 0.0f)`
+- 从存档文件读取浮点数值
+- 文件不存在、key 不存在或解析失败时返回 `defaultValue`
+
+#### `static const char *LoadString(const char *filename, const char *key, const char *defaultValue = "")`
+- 从存档文件读取字符串值
+- 返回指向内部 `static char[1024]` 缓冲区的指针，在下次调用 `LoadString` 前有效
+- 文件不存在或 key 不存在时返回 `defaultValue`
+
+#### `static bool HasSaveKey(const char *filename, const char *key)`
+- 判断存档文件中是否存在指定 key
+
+#### `static bool DeleteSaveKey(const char *filename, const char *key)`
+- 从存档文件中删除指定 key
+- 若删除后文件只剩头部，则删除整个文件
+- 成功返回 `true`
+
+#### `static bool DeleteSave(const char *filename)`
+- 删除整个存档文件
+- 成功返回 `true`
+
+#### 存档文件格式
+
+存档文件为纯文本格式，可用记事本打开查看：
+
+```
+GAMELIB_SAVE
+score=100
+name=Player\nOne
+level=3
+```
+
+- 第一行固定为 `GAMELIB_SAVE` 魔数头
+- 后续每行为 `key=value` 格式
+- 字符串值中的 `\` 和换行符会转义存储
+- Win32 版使用 `_gamelib_fopen_utf8()` 打开文件，支持 UTF-8 文件路径
+
 ---
 
 ## 7. 窗口过程 (WndProc) 处理的消息
@@ -808,6 +907,13 @@ static bool _srandDone; // srand 是否已初始化
 | `static void _gamelib_com_release(void *obj)` | 通过 COM vtable 手动调用 `IUnknown::Release`（无需 ObjBase.h） |
 | `static uint32_t* _gamelib_gdiplus_load(...)` | 从内存数据通过 GDI+ 解码图片，返回 32bppARGB 像素数组 |
 | `static int _gamelib_load_apis()` | 动态加载 `gdi32.dll` 和 `winmm.dll` 的全部函数指针（构造函数调用，仅首次执行） |
+| `static std::string _gamelib_save_escape(const char*)` | 将字符串值中的 `\` 和 `\n` 转义为 `\\` 和 `\n` |
+| `static std::string _gamelib_save_unescape(const char*, size_t)` | 将转义后的字符串还原 |
+| `static bool _gamelib_save_find_key(...)` | 在存档内容中查找指定 key 所在行 |
+| `static std::string _gamelib_save_read_all(const char*)` | 读取整个存档文件内容（Win32 版用 `_gamelib_fopen_utf8`） |
+| `static bool _gamelib_save_write_all(const char*, const std::string&)` | 写回整个存档文件（Win32 版用 `_gamelib_fopen_utf8`） |
+| `static bool _gamelib_save_write_key(...)` | 写入或更新存档中的指定 key-value |
+| `static bool _gamelib_save_read_key(...)` | 从存档中读取指定 key 的 value |
 
 ---
 
@@ -935,3 +1041,11 @@ int main() {
 | `_gamelib_load_apis` 失败时清理所有指针 | GetProcAddress 部分失败时 NULL out 所有指针 + FreeLibrary 两个 DLL，防止悬空指针 |
 | `_gamelib_gdiplus_init` 失败时分级清理 | -2/-3 错误路径 FreeLibrary 已加载的 DLL；-4 错误（`GdiplusStartup` 失败）不释放 DLL 因为函数指针已指向 DLL 内部地址 |
 | `PlayMusic` 使用 `mciSendStringW` + 路径过滤 | 路径支持 UTF-8；拒绝引号和换行，避免 MCI 字符串命令注入 |
+| 场景切换延迟到下一帧 `Update()` 生效 | 避免同一帧内输入穿透到新场景；pending 机制保证 `SetScene()` 后的当前帧逻辑完整执行 |
+| 初始帧 `_sceneChanged = true` | 方便用户在场景 0 的首帧做一次性初始化，不需要额外的 `firstFrame` 变量 |
+| 存档函数全部 `static` | 不依赖 GameLib 实例，可在任意时机（包括 `Open()` 前）调用；与 `Random()` 保持一致的调用风格 |
+| 存档文件纯文本 `key=value` 格式 | 用记事本可直接查看和编辑，便于调试；`GAMELIB_SAVE` 魔数头防止误解析其他文本文件 |
+| 字符串值仅转义 `\` 和 `\n` | 最小转义方案，其他特殊字符（tab、空格等）原样保存；保证 `key=value` 行格式不被换行符破坏 |
+| `LoadString` 返回 `static char[1024]` 指针 | 避免引入 `std::string` 返回值或手动 free，对初学者最简单；代价是下次调用覆盖，但教学场景下够用 |
+| 存档读写使用 `_gamelib_fopen_utf8` | Win32 版与精灵/音乐路径一致，支持中文文件名 |
+| 存档实现放在文件末尾 `#endif` 前 | 避免在绘制/精灵/Tilemap 等核心渲染代码中间插入大量无关代码，保持中段可读性 |
