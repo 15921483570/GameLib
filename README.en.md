@@ -601,8 +601,12 @@ Custom colors: `COLOR_RGB(r, g, b)` or `COLOR_ARGB(a, r, g, b)`
 - Maze
 - Fruit Catcher
 - Bullet Hell
+- Turn-Based RPG (scene switching + save/load)
+- Visual Novel / Text Adventure (multi-scene + branching dialogue)
+- Map Editor (tilemap + UI controls)
 - Paint Program
-- Any 2D mini-game you can think of
+- Course Project Demos (instant visuals, zero-config delivery)
+- Any 2D mini-game or interactive app you can think of
 
 
 

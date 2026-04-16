@@ -601,8 +601,12 @@ COLOR_BROWN    COLOR_GOLD      COLOR_TRANSPARENT
 - 走迷宫 (Maze)
 - 接水果 (Fruit Catcher)
 - 弹幕游戏 (Bullet Hell)
+- 回合制 RPG（场景切换 + 存档读写）
+- 视觉小说 / 文字冒险（多场景 + 分支对话）
+- 地图编辑器（Tilemap + UI 控件）
 - 画板程序 (Paint)
-- 任何你能想到的 2D 小游戏
+- 课程作业演示（快速出图，零配置交付）
+- 任何你能想到的 2D 小游戏或互动程序
 
 
 
