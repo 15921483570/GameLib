@@ -7,7 +7,7 @@
 ```
 - assets/    # images and audios
 - docs/      # documentations
-- examples/  # examples (01~20 渐进式示例，可作为参考和回归测试)
+- examples/  # examples (01~15 统一示例，兼容 Win32 和 SDL 双后端，可作为参考和回归测试)
 - tests/     # tests（Win32 demo*.cpp 和 SDL sdldemo*.cpp；目录里可能已有编译产物 .exe/.o）
 - GameLib.h  # main source (Win32 主线，单头文件，所有实现都在这一个文件里)
 - GameLib.SDL.h # independent SDL product line (跨平台 SDL 版单头文件)
@@ -82,8 +82,8 @@ g++ -o output.exe source.cpp -mwindows
 
 - 先完整阅读 docs/Manual.md（接口说明）和 docs/GameLib.md（设计思路），确保理解 GameLib.h 的用法。
 - 阅读 assets/sprites.md 和 assets/sound.md，了解可用的图片和音效资源，优先使用现有素材。
-- 参考 examples/ 目录下的示例代码（从 01_hello.cpp 到 20_sprite_rotation.cpp），它们按功能渐进排列，涵盖窗口、图形、精灵、动画、声音、Tilemap、裁剪矩形、字体、缩放、旋转与 tilemap 文件等主题。
-- 游戏文件放在 examples/ 或 tests/ 目录下，通过 `#include "../GameLib.h"` 引入。
+- 参考 examples/ 目录下的示例代码（从 01_hello.cpp 到 15_ui_controls.cpp），它们按功能渐进排列，涵盖窗口、图形、精灵、动画、声音、Tilemap、裁剪矩形、字体、缩放、旋转与 UI 控件等主题。每个示例通过预处理器自动选择 Win32 或 SDL 后端。
+- 游戏文件放在 examples/ 或 tests/ 目录下，通过 `#include "../GameLib.h"` 或 `#include "../GameLib.SDL.h"` 引入。
 
 ### 迭代 GameLib.h
 

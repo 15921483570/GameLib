@@ -335,7 +335,7 @@ int main()
 
 ## 示例程序
 
-`examples/` 目录包含 21 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap、裁剪矩形、字体文字、缩放、旋转绘制与 UI 控件。
+`examples/` 目录包含 15 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、动画、声音、Tilemap、裁剪矩形、字体文字、缩放、旋转与 UI 控件。每个示例同时兼容 Win32 (`GameLib.h`) 和 SDL (`GameLib.SDL.h`) 两条产品线，文件头通过预处理自动选择。
 
 编译任意示例：
 
@@ -354,56 +354,40 @@ g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 | 示例 | 说明 | 学到什么 |
 |-|-|-|
 | `01_hello.cpp` | Hello World | 游戏循环、窗口创建、文字绘制 |
-| `02_moving_box.cpp` | 键盘控制方块移动 | 键盘输入、实时更新 |
-| `03_shapes.cpp` | 所有图形绘制展示 | 线、矩形、圆、三角形的描边与填充 |
-| `04_bouncing_ball.cpp` | 弹跳小球 | 浮点运动、碰壁反弹、DrawPrintf |
-
-### 交互进阶
-
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `05_paint.cpp` | 简易画板 | 鼠标输入、滚轮调笔刷、失焦暂停 |
-| `06_catch_fruit.cpp` | 接水果小游戏 | Random、碰撞检测、计分 |
-| `07_shooting_stars.cpp` | 简易射击 | 数组管理多对象、子弹发射、碰撞销毁 |
+| `02_movement.cpp` | 键盘移动 + 弹跳小球（TAB 切换） | 键盘输入、GetDeltaTime、碰壁反弹 |
+| `03_shapes.cpp` | 所有图形绘制展示 | 线、矩形、圆、椭圆、三角形的描边与填充 |
+| `04_paint.cpp` | 简易画板 | 鼠标输入、滚轮调笔刷、失焦暂停 |
 
 ### 精灵与声音
 
 | 示例 | 说明 | 学到什么 |
 |-|-|-|
-| `08_sprite_demo.cpp` | 精灵加载与绘制 | LoadSpriteBMP、翻转、Region 裁剪 |
-| `09_sprite_animation.cpp` | 精灵帧动画 | DrawSpriteRegion 实现 sprite sheet 动画 |
-| `10_sound_demo.cpp` | 声音播放演示 | PlayWAV 音效、PlayMusic 背景音乐 |
+| `05_sprites.cpp` | 精灵基础 + 帧动画（TAB 切换） | CreateSprite、DrawSpriteEx、DrawSpriteFrameScaled、方向动画 |
+| `06_sound.cpp` | 声音播放演示 | PlayBeep、PlayWAV、PlayMusic、跨平台音乐处理 |
+| `07_shooting.cpp` | 简易射击 | 数组管理多对象、子弹发射、碰撞销毁 |
 
 ### 完整小游戏
 
 | 示例 | 说明 | 学到什么 |
 |-|-|-|
-| `11_snake.cpp` | 贪吃蛇 | DrawGrid/FillCell、游戏状态机 |
-| `12_breakout.cpp` | 打砖块 | 碰撞检测深度运用、多对象管理 |
-| `13_space_shooter.cpp` | 太空射击 | 综合：精灵 + 音效 + 碰撞 + 滚动背景 + 计分 |
+| `08_breakout.cpp` | 打砖块 | 碰撞检测深度运用、多对象管理、音效反馈 |
+| `09_snake.cpp` | 贪吃蛇 | DrawGrid/FillCell、游戏状态机 |
 
-### Tilemap 卷轴
-
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `14_tilemap.cpp` | 双层卷轴 | FillTileRect/ClearTilemap、像素转瓦片、视差滚动 |
-| `18_tilemap_file.cpp` | 地图文件读写 | SaveTilemap、LoadTilemap、`.glm` 纯文本格式 |
-| `19_clip_tilemap.cpp` | 裁剪窗口卷轴 | SetClip/ClearClip、双层 Tilemap、精灵/字体/图元裁剪 |
-
-### 字体与补充演示
+### Tilemap 与文字
 
 | 示例 | 说明 | 学到什么 |
 |-|-|-|
-| `15_font_text.cpp` | 可缩放字体 | DrawTextFont、中文文字输出、不同字号 |
-| `16_playsound.cpp` | 简单音效播放 | PlayWAV、按键触发音效 |
-| `17_sprite_scaling.cpp` | 精灵缩放绘制 | LoadSprite、DrawSpriteScaled / DrawSpriteFrameScaled、滚轮调比例 |
-| `20_sprite_rotation.cpp` | 精灵旋转绘制 | CreateSprite、DrawSpriteRotated / DrawSpriteFrameRotated、中心点旋转 |
+| `10_tilemap.cpp` | 双层视差卷轴 | CreateTilemap、FillTileRect、WorldToTileCol/Row、视差滚动 |
+| `11_font_text.cpp` | 可缩放字体与 UI | DrawTextFont、DrawPrintfFont、ShowMouse、ShowMessage |
 
-### 场景与 UI
+### 高级特性
 
 | 示例 | 说明 | 学到什么 |
 |-|-|-|
-| `21_ui_controls.cpp` | UI 控件演示 | Button、Checkbox、RadioBox、ToggleButton 即时模式 UI |
+| `12_sprite_transform.cpp` | 精灵缩放 + 旋转（TAB 切换） | DrawSpriteScaled、DrawSpriteRotated、DrawSpriteFrameRotated |
+| `13_clip_rect.cpp` | 裁剪矩形 | SetClip/ClearClip/GetClip、图元/文字/精灵裁剪 |
+| `14_space_shooter.cpp` | 太空射击 | 综合：精灵 + 音效 + 碰撞 + 滚动背景 + 难度递进 |
+| `15_ui_controls.cpp` | UI 控件演示 | Button、Checkbox、RadioBox、ToggleButton 即时模式 UI |
 
 
 
