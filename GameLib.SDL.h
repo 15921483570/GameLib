@@ -320,6 +320,7 @@ public:
     int GetClipY() const;
     int GetClipW() const;
     int GetClipH() const;
+    void Screenshot(const char *filename);
 
     void DrawLine(int x1, int y1, int x2, int y2, uint32_t color);
     void DrawRect(int x, int y, int w, int h, uint32_t color);
@@ -1817,6 +1818,68 @@ int GameLib::ShowMessage(const char *text, const char *title, int buttons)
     }
 
     return result;
+}
+
+void GameLib::Screenshot(const char *filename)
+{
+    if (!filename) return;
+    if (!_framebuffer || _width <= 0 || _height <= 0) return;
+
+    SDL_RWops *rw = SDL_RWFromFile(filename, "wb");
+    if (!rw) return;
+
+    int rowSize = ((_width * 3 + 3) / 4) * 4;
+    int imageSize = rowSize * _height;
+    int fileSize = 14 + 40 + imageSize;
+
+    // BMP file header (14 bytes)
+    unsigned char fh[14];
+    memset(fh, 0, 14);
+    fh[0] = 'B'; fh[1] = 'M';
+    fh[2] = (unsigned char)(fileSize);      fh[3] = (unsigned char)(fileSize >> 8);
+    fh[4] = (unsigned char)(fileSize >> 16); fh[5] = (unsigned char)(fileSize >> 24);
+    fh[10] = 14 + 40;
+
+    // BMP info header (40 bytes)
+    unsigned char ih[40];
+    memset(ih, 0, 40);
+    ih[4]  = 40;
+    ih[8]  = (unsigned char)(_width);       ih[9]  = (unsigned char)(_width >> 8);
+    ih[10] = (unsigned char)(_width >> 16);  ih[11] = (unsigned char)(_width >> 24);
+    ih[12] = (unsigned char)(_height);      ih[13] = (unsigned char)(_height >> 8);
+    ih[14] = (unsigned char)(_height >> 16); ih[15] = (unsigned char)(_height >> 24);
+    ih[16] = 1; ih[18] = 24;
+    ih[20] = (unsigned char)(imageSize);     ih[21] = (unsigned char)(imageSize >> 8);
+    ih[22] = (unsigned char)(imageSize >> 16); ih[23] = (unsigned char)(imageSize >> 24);
+
+    if (SDL_RWwrite(rw, fh, 14, 1) != 1 || SDL_RWwrite(rw, ih, 40, 1) != 1) {
+        SDL_RWclose(rw);
+        return;
+    }
+
+    unsigned char *rowBuf = (unsigned char*)malloc((size_t)rowSize);
+    if (!rowBuf) {
+        SDL_RWclose(rw);
+        return;
+    }
+
+    for (int y = _height - 1; y >= 0; y--) {
+        const uint32_t *src = _framebuffer + (size_t)y * _width;
+        memset(rowBuf, 0, (size_t)rowSize);
+        for (int x = 0; x < _width; x++) {
+            rowBuf[x * 3 + 0] = (unsigned char)COLOR_GET_B(src[x]);
+            rowBuf[x * 3 + 1] = (unsigned char)COLOR_GET_G(src[x]);
+            rowBuf[x * 3 + 2] = (unsigned char)COLOR_GET_R(src[x]);
+        }
+        if (SDL_RWwrite(rw, rowBuf, (size_t)rowSize, 1) != 1) {
+            free(rowBuf);
+            SDL_RWclose(rw);
+            return;
+        }
+    }
+
+    free(rowBuf);
+    SDL_RWclose(rw);
 }
 
 void GameLib::Clear(uint32_t color)

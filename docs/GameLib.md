@@ -414,6 +414,14 @@ static bool _srandDone; // srand 是否已初始化
 #### `int GetClipX() const` / `int GetClipY() const` / `int GetClipW() const` / `int GetClipH() const`
 - 读取当前有效裁剪矩形的各个分量
 
+#### `void Screenshot(const char *filename)`
+- 将当前 framebuffer 内容保存为 24-bit BMP 文件
+- `filename` 按 UTF-8 传递，通过 `_gamelib_fopen_utf8` 写入
+- 像素格式：从 ARGB32 framebuffer 中提取 R/G/B 三通道，丢弃 Alpha，按 BGR 顺序写入 BMP（BMP 标准 24-bit 像素布局）
+- 行顺序：framebuffer 是 top-down（DIB biHeight 为负值），BMP 标准是 bottom-up，因此逐行从最后一行开始写入
+- 每行按 4 字节对齐（row padding），填充字节置零
+- `_framebuffer` 为 NULL 或窗口未初始化时直接返回，不创建文件
+
 ### 6.3 图形绘制
 
 说明：本节所有图元 API 都接受 `COLOR_ARGB(a, r, g, b)` 颜色；当 `a < 255` 时，会与现有帧缓冲内容做 Alpha 混合。所有图元、文字、精灵与 Tilemap 绘制都会受当前 Clip Rectangle 约束。

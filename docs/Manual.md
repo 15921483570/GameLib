@@ -32,6 +32,7 @@
 | `ClearClip()`                     | 清除裁剪，恢复整屏可见 |
 | `GetClip(int*, int*, int*, int*)` | 读取当前有效裁剪矩形 |
 | `GetClipX()` / `GetClipY()` / `GetClipW()` / `GetClipH()` | 读取当前有效裁剪矩形分量 |
+| `Screenshot(filename)`                      | 将 framebuffer 保存为 24-bit BMP 文件（路径按 UTF-8） |
 | `DrawLine(x1, y1, x2, y2, color)` | 画线（支持 Alpha 混合） |
 | `DrawRect(x, y, w, h, color)`     | 矩形边框（支持 Alpha 混合） |
 | `FillRect(x, y, w, h, color)`     | 填充矩形（支持 Alpha 混合） |
@@ -59,16 +60,6 @@
 | `GetTextWidthFont(text, fontSize)` / `GetTextHeightFont(text, fontSize)` | 用默认字体测量文字尺寸 |
 | `GetTextWidthFont(text, fontName, fontSize)` / `GetTextHeightFont(text, fontName, fontSize)` | 用指定字体测量文字尺寸 |
 
-### UI
-
-| 函数                                      | 说明       |
-| ----------------------------------------- | ---------- |
-| `Button(x, y, w, h, text, color)`         | 绘制立即模式按钮；在按钮内按下并在按钮内松开左键时返回 `true` |
-| `Checkbox(x, y, text, &checked)`          | 绘制立即模式复选框；触发时翻转 `checked` 并返回 `true` |
-| `RadioBox(x, y, text, &value, index)`     | 绘制立即模式单选框；触发时设置 `value = index` 并返回 `true`；同一组共享同一个 `value` 指针实现互斥 |
-| `ToggleButton(x, y, w, h, text, &toggled, color)` | 绘制立即模式开关按钮；触发时翻转 `toggled` 并返回 `true`；`toggled` 为 `true` 时按钮持续凹陷 |
-
-`Button` 使用内置 8x8 点阵字库绘制 ASCII 标签，视觉状态分为 `normal`、`hover`、`pressed` 三种；传入的 `color` 作为基色，悬停与按下效果由库内部自动做提亮 / 压暗和立体边框运算。`Checkbox` 也使用内置 8x8 点阵字库，点击区域包含方框和文字标签，稳定状态分为 `checked`、`checked-hover`、`unchecked`、`unchecked-hover` 四种，选中时在方框中心绘制实心块。`RadioBox` 与 `Checkbox` 布局一致但以圆形轮廓与中心圆点代替方框与实心块；同一组的多个 `RadioBox` 共享同一个 `int *value`，触发时写入 `*value = index` 实现互斥。`ToggleButton` 与 `Button` 视觉一致但增加了 `toggled` 状态：`toggled` 为 `true` 时按钮持续显示凹陷外观（立体边框反转 + 面色压暗 + 文字偏移），点击时翻转 `toggled` 值。
 
 ### 精灵
 
@@ -152,6 +143,17 @@
 | `GetPreviousScene()`  | 获取切换前的场景                        |
 
 场景用整数标识，推荐用 `enum` 定义（如 `enum { SCENE_MENU, SCENE_PLAY, SCENE_GAMEOVER }`）。`SetScene()` 不会立即生效，而是在下一次 `Update()` 时切换——这样避免了同一帧内输入穿透到新场景。`IsSceneChanged()` 在新场景的第一帧返回 `true`，之后返回 `false`。初始场景为 `0`，第一帧的 `IsSceneChanged()` 也是 `true`（方便在场景 0 的首帧做初始化）。调用 `SetScene(GetScene())` 可以重启当前场景（会再次触发一次 `IsSceneChanged() == true`）。
+
+### UI
+
+| 函数                                      | 说明       |
+| ----------------------------------------- | ---------- |
+| `Button(x, y, w, h, text, color)`         | 绘制立即模式按钮；在按钮内按下并在按钮内松开左键时返回 `true` |
+| `Checkbox(x, y, text, &checked)`          | 绘制立即模式复选框；触发时翻转 `checked` 并返回 `true` |
+| `RadioBox(x, y, text, &value, index)`     | 绘制立即模式单选框；触发时设置 `value = index` 并返回 `true`；同一组共享同一个 `value` 指针实现互斥 |
+| `ToggleButton(x, y, w, h, text, &toggled, color)` | 绘制立即模式开关按钮；触发时翻转 `toggled` 并返回 `true`；`toggled` 为 `true` 时按钮持续凹陷 |
+
+`Button` 使用内置 8x8 点阵字库绘制 ASCII 标签，视觉状态分为 `normal`、`hover`、`pressed` 三种；传入的 `color` 作为基色，悬停与按下效果由库内部自动做提亮 / 压暗和立体边框运算。`Checkbox` 也使用内置 8x8 点阵字库，点击区域包含方框和文字标签，稳定状态分为 `checked`、`checked-hover`、`unchecked`、`unchecked-hover` 四种，选中时在方框中心绘制实心块。`RadioBox` 与 `Checkbox` 布局一致但以圆形轮廓与中心圆点代替方框与实心块；同一组的多个 `RadioBox` 共享同一个 `int *value`，触发时写入 `*value = index` 实现互斥。`ToggleButton` 与 `Button` 视觉一致但增加了 `toggled` 状态：`toggled` 为 `true` 时按钮持续显示凹陷外观（立体边框反转 + 面色压暗 + 文字偏移），点击时翻转 `toggled` 值。
 
 ### 存档读写
 

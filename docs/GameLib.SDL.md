@@ -350,7 +350,7 @@ GameLib.SDL.h
 
 - `Open` / `IsClosed` / `Update` / `WaitFrame` / `WinResize` / `SetMaximized`
 - `Clear` / `SetPixel` / `GetPixel` / `SetClip` / `ClearClip` / `GetClip`
-- `GetClipX` / `GetClipY` / `GetClipW` / `GetClipH`
+- `GetClipX` / `GetClipY` / `GetClipW` / `GetClipH` / `Screenshot`
 - `DrawLine` / `DrawRect` / `FillRect` / `DrawCircle` / `FillCircle` / `DrawEllipse` / `FillEllipse` / `DrawTriangle` / `FillTriangle`
 - `DrawText` / `DrawNumber` / `DrawTextScale` / `DrawPrintf`
 - `Button` / `Checkbox` / `RadioBox` / `ToggleButton`
@@ -427,6 +427,15 @@ GameLib.SDL.h
 - 每行按第一个 `=` 切分 key/value，因此 value 可以包含 `=`。
 - key 不能为空，且不能包含 `=`、回车或换行。
 - **唯一实现差异**：SDL 版使用标准 `fopen()` 打开文件，而 Win32 版使用 `_gamelib_fopen_utf8()`。这意味着在 Windows + MinGW 环境下，如果存档路径包含非 ASCII 字符（如中文目录），SDL 版可能无法正确打开文件。在 macOS / Linux 上，系统 locale 通常默认 UTF-8，不受此限制。
+
+#### 截图（`Screenshot`）
+
+- 将当前 `_framebuffer` 内容保存为 24-bit BMP 文件。
+- `filename` 按 UTF-8 传递，通过 `SDL_RWFromFile(filename, "wb")` 写入。
+- 像素格式：从 ARGB32 framebuffer 中提取 R/G/B 三通道，丢弃 Alpha，按 BGR 顺序写入 BMP。
+- 行顺序：framebuffer 是 top-down，BMP 标准是 bottom-up，因此逐行从最后一行开始写入。
+- 每行按 4 字节对齐（row padding），填充字节置零。
+- `_framebuffer` 为 NULL 或窗口未初始化时直接返回，不创建文件。
 
 ### 6.3 键盘常量策略
 

@@ -344,6 +344,7 @@ public:
     int GetClipY() const;
     int GetClipW() const;
     int GetClipH() const;
+    void Screenshot(const char *filename);
 
     // -------- Drawing --------
     void DrawLine(int x1, int y1, int x2, int y2, uint32_t color);
@@ -887,6 +888,7 @@ static int _gamelib_load_apis()
 static bool _gamelib_mci_play_music_alias(const wchar_t *alias, HWND callbackWindow, bool isMidi, bool loop);
 static void _gamelib_close_music_alias(const wchar_t *alias);
 static wchar_t *_gamelib_utf8_to_wide(const char *text, int *outLen);
+static FILE *_gamelib_fopen_utf8(const char *filename, const wchar_t *mode);
 
 
 //---------------------------------------------------------------------
@@ -2020,6 +2022,68 @@ void GameLib::_UpdateTitleFps()
 //=====================================================================
 // Frame Buffer Operations
 //=====================================================================
+
+void GameLib::Screenshot(const char *filename)
+{
+    if (!filename) return;
+    if (!_framebuffer || _width <= 0 || _height <= 0) return;
+
+    FILE *fp = _gamelib_fopen_utf8(filename, L"wb");
+    if (!fp) return;
+
+    int rowSize = ((_width * 3 + 3) / 4) * 4;
+    int imageSize = rowSize * _height;
+    int fileSize = 14 + 40 + imageSize;
+
+    // BMP file header (14 bytes)
+    unsigned char fh[14];
+    memset(fh, 0, 14);
+    fh[0] = 'B'; fh[1] = 'M';
+    fh[2] = (unsigned char)(fileSize);      fh[3] = (unsigned char)(fileSize >> 8);
+    fh[4] = (unsigned char)(fileSize >> 16); fh[5] = (unsigned char)(fileSize >> 24);
+    fh[10] = 14 + 40;
+
+    // BMP info header (40 bytes)
+    unsigned char ih[40];
+    memset(ih, 0, 40);
+    ih[4]  = 40;
+    ih[8]  = (unsigned char)(_width);       ih[9]  = (unsigned char)(_width >> 8);
+    ih[10] = (unsigned char)(_width >> 16);  ih[11] = (unsigned char)(_width >> 24);
+    ih[12] = (unsigned char)(_height);      ih[13] = (unsigned char)(_height >> 8);
+    ih[14] = (unsigned char)(_height >> 16); ih[15] = (unsigned char)(_height >> 24);
+    ih[16] = 1; ih[18] = 24;
+    ih[20] = (unsigned char)(imageSize);     ih[21] = (unsigned char)(imageSize >> 8);
+    ih[22] = (unsigned char)(imageSize >> 16); ih[23] = (unsigned char)(imageSize >> 24);
+
+    if (fwrite(fh, 14, 1, fp) != 1 || fwrite(ih, 40, 1, fp) != 1) {
+        fclose(fp);
+        return;
+    }
+
+    unsigned char *rowBuf = (unsigned char*)malloc((size_t)rowSize);
+    if (!rowBuf) {
+        fclose(fp);
+        return;
+    }
+
+    for (int y = _height - 1; y >= 0; y--) {
+        const uint32_t *src = _framebuffer + (size_t)y * _width;
+        memset(rowBuf, 0, (size_t)rowSize);
+        for (int x = 0; x < _width; x++) {
+            rowBuf[x * 3 + 0] = (unsigned char)COLOR_GET_B(src[x]);
+            rowBuf[x * 3 + 1] = (unsigned char)COLOR_GET_G(src[x]);
+            rowBuf[x * 3 + 2] = (unsigned char)COLOR_GET_R(src[x]);
+        }
+        if (fwrite(rowBuf, (size_t)rowSize, 1, fp) != 1) {
+            free(rowBuf);
+            fclose(fp);
+            return;
+        }
+    }
+
+    free(rowBuf);
+    fclose(fp);
+}
 
 void GameLib::Clear(uint32_t color)
 {
