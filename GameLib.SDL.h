@@ -72,9 +72,9 @@ struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
 struct SDL_Surface;
-typedef struct TTF_Font TTF_Font;
+typedef struct _TTF_Font TTF_Font;
 typedef struct Mix_Chunk Mix_Chunk;
-typedef struct Mix_Music Mix_Music;
+typedef struct _Mix_Music Mix_Music;
 
 // Color constants (ARGB format: 0xAARRGGBB)
 #define COLOR_BLACK       0xFF000000
