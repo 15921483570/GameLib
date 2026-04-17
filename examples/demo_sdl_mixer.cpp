@@ -7,11 +7,7 @@
 // Compile (Win32): g++ -o 06_sound.exe 06_sound.cpp -mwindows
 // Compile (SDL):   g++ -std=c++11 -O2 -o 06_sound 06_sound.cpp -lSDL2
 
-#if defined(_WIN32) && !defined(USE_SDL)
-#include "../GameLib.h"
-#else
 #include "../GameLib.SDL.h"
-#endif
 
 static const char *ChooseExistingPath(const char *pathA, const char *pathB)
 {
@@ -138,3 +134,4 @@ int main()
     }
     return 0;
 }
+

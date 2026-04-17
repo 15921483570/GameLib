@@ -539,6 +539,7 @@ private:
     int _wavChannel;
     Mix_Music *_currentMusic;
     bool _musicPlaying;
+    int _mixerInitFlags;
 
     // scene state
     int _scene;
@@ -967,6 +968,7 @@ GameLib::GameLib()
     _wavChannel = 0;
     _currentMusic = NULL;
     _musicPlaying = false;
+    _mixerInitFlags = 0;
     _scene = 0;
     _pendingScene = 0;
     _hasPendingScene = false;
@@ -1034,6 +1036,7 @@ GameLib::~GameLib()
         Mix_CloseAudio();
         Mix_Quit();
         _mixerReady = false;
+        _mixerInitFlags = 0;
     }
 #endif
 
@@ -1134,7 +1137,7 @@ bool GameLib::_EnsureMixerReady()
 #ifdef MIX_INIT_MID
     flags |= MIX_INIT_MID;
 #endif
-    if (flags != 0) Mix_Init(flags);
+    if (flags != 0) _mixerInitFlags = Mix_Init(flags);
     if (Mix_OpenAudio(44100, AUDIO_S16SYS, 2, 1024) != 0) return false;
     Mix_AllocateChannels(8);
     _wavChannel = 0;
@@ -3812,6 +3815,55 @@ static bool _gamelib_sdl_is_midi_music_path(const char *filename)
     return _gamelib_sdl_path_has_music_extension(filename, "mid") ||
            _gamelib_sdl_path_has_music_extension(filename, "midi");
 }
+
+static bool _gamelib_sdl_is_mp3_music_path(const char *filename)
+{
+    return _gamelib_sdl_path_has_music_extension(filename, "mp3");
+}
+
+static bool _gamelib_sdl_is_ogg_music_path(const char *filename)
+{
+    return _gamelib_sdl_path_has_music_extension(filename, "ogg");
+}
+
+static bool _gamelib_sdl_is_flac_music_path(const char *filename)
+{
+    return _gamelib_sdl_path_has_music_extension(filename, "flac");
+}
+
+static bool _gamelib_sdl_check_music_format_supported(const char *filename, int mixerInitFlags)
+{
+    if (_gamelib_sdl_is_midi_music_path(filename)) {
+#ifdef MIX_INIT_MID
+        return (mixerInitFlags & MIX_INIT_MID) != 0;
+#else
+        return false;
+#endif
+    }
+    if (_gamelib_sdl_is_mp3_music_path(filename)) {
+#ifdef MIX_INIT_MP3
+        return (mixerInitFlags & MIX_INIT_MP3) != 0;
+#else
+        return false;
+#endif
+    }
+    if (_gamelib_sdl_is_ogg_music_path(filename)) {
+#ifdef MIX_INIT_OGG
+        return (mixerInitFlags & MIX_INIT_OGG) != 0;
+#else
+        return false;
+#endif
+    }
+    if (_gamelib_sdl_is_flac_music_path(filename)) {
+#ifdef MIX_INIT_FLAC
+        return (mixerInitFlags & MIX_INIT_FLAC) != 0;
+#else
+        return false;
+#endif
+    }
+    // WAV and other formats are always supported by SDL_mixer
+    return true;
+}
 #endif
 
 bool GameLib::PlayMusic(const char *filename, bool loop)
@@ -3819,12 +3871,12 @@ bool GameLib::PlayMusic(const char *filename, bool loop)
 #if GAMELIB_SDL_HAS_MIXER
     if (!filename) return false;
 
-    if (_gamelib_sdl_is_midi_music_path(filename)) {
+    if (!_EnsureMixerReady()) return false;
+
+    if (!_gamelib_sdl_check_music_format_supported(filename, _mixerInitFlags)) {
         StopMusic();
         return false;
     }
-
-    if (!_EnsureMixerReady()) return false;
 
     StopMusic();
     _currentMusic = Mix_LoadMUS(filename);
