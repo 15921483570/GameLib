@@ -2539,7 +2539,7 @@ static bool DeleteSaveKey(const char *filename, const char *key);
 
 **函数声明**
 ```cpp
-static bool DeleteSave(const char *filename)
+static bool DeleteSave(const char *filename);
 ```
 
 **参数**
@@ -2564,7 +2564,7 @@ static bool DeleteSave(const char *filename)
 
 **函数声明**
 ```cpp
-static int Random(int minVal, int maxVal)
+static int Random(int minVal, int maxVal);
 ```
 
 **参数**
@@ -2590,7 +2590,7 @@ AABB 矩形碰撞检测。
 
 **函数声明**
 ```cpp
-static bool RectOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2)
+static bool RectOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2);
 ```
 
 **参数**
@@ -2618,7 +2618,7 @@ static bool RectOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, 
 
 **函数声明**
 ```cpp
-static bool CircleOverlap(int cx1, int cy1, int r1, int cx2, int cy2, int r2)
+static bool CircleOverlap(int cx1, int cy1, int r1, int cx2, int cy2, int r2);
 ```
 
 **参数**
@@ -2648,7 +2648,7 @@ static bool CircleOverlap(int cx1, int cy1, int r1, int cx2, int cy2, int r2)
 
 **函数声明**
 ```cpp
-static bool PointInRect(int px, int py, int x, int y, int w, int h)
+static bool PointInRect(int px, int py, int x, int y, int w, int h);
 ```
 
 **参数**
@@ -2674,7 +2674,7 @@ static bool PointInRect(int px, int py, int x, int y, int w, int h)
 
 **函数声明**
 ```cpp
-static float Distance(int x1, int y1, int x2, int y2)
+static float Distance(int x1, int y1, int x2, int y2);
 ```
 
 **参数**
@@ -2698,7 +2698,7 @@ static float Distance(int x1, int y1, int x2, int y2)
 
 **函数声明**
 ```cpp
-void DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color)
+void DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color);
 ```
 
 **参数**
@@ -2723,7 +2723,7 @@ void DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color)
 
 **函数声明**
 ```cpp
-void FillCell(int gridX, int gridY, int row, int col, int cellSize, uint32_t color)
+void FillCell(int gridX, int gridY, int row, int col, int cellSize, uint32_t color);
 ```
 
 **参数**
