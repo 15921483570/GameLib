@@ -17,9 +17,10 @@
 
 | 文档 | 用途 | 何时需要读 |
 |------|------|-----------|
-| `docs/Manual.md` | GameLib.h 公开 API 接口说明 | 做游戏、改公开 API 时 |
+| `docs/manual.md` | GameLib.h 公开 API 接口说明 | 做游戏、改公开 API 时 |
 | `docs/GameLib.md` | GameLib.h 内部设计思路与技术规格 | 改 GameLib.h 内部实现时 |
 | `docs/GameLib.SDL.md` | GameLib.SDL.h 的规格、兼容边界与实现决策 | 改 GameLib.SDL.h 时 |
+| `docs/quickref.md` | GameLib.h 的快速 API 列表 | 做游戏，改公开 API 时 |
 | `SDL2PORT.md` | SDL 版编译命令与当前限制（简版） | 编译 SDL 版时 |
 | `assets/sprites.md` | 精灵图资源索引（尺寸、用途、瓦片集详情） | 做游戏需要图片素材时 |
 | `assets/sound.md` | 音效资源索引（WAV 参数和用途） | 做游戏需要音效素材时 |
@@ -64,7 +65,7 @@ g++ -o output.exe source.cpp -mwindows
 最小命令（只启用 SDL2 核心）：
 
 ```bash
-g++ -std=c++11 -O2 -DUSE_SDL=1 -o game.exe main.cpp -lSDL2
+g++ -std=c++11 -O2 -o game.exe main.cpp -lSDL2
 ```
 
 启用 `SDL2_image` / `SDL2_ttf` / `SDL2_mixer` 时需要同时链接对应库。完整编译命令见 `SDL2PORT.md`。
@@ -98,7 +99,7 @@ g++ -std=c++11 -O2 -DUSE_SDL=1 -o game.exe main.cpp -lSDL2
 
 ### 用 GameLib.h 做游戏
 
-1. 阅读 `docs/Manual.md` 了解公开 API。
+1. 阅读 `docs/manual.md` 了解公开 API。
 2. 阅读 `assets/sprites.md` 和 `assets/sound.md`，优先使用现有素材。
 3. 参考上方 Examples 表格，找到与目标功能最接近的示例作为起点。
 4. 游戏文件放在 `examples/` 目录下，通过 `#include "../GameLib.h"` 引入。
@@ -106,7 +107,7 @@ g++ -std=c++11 -O2 -DUSE_SDL=1 -o game.exe main.cpp -lSDL2
 ### 迭代 GameLib.h
 
 1. 先阅读 `docs/GameLib.md` 中与改动相关的章节（不需要每次通读全文）。
-2. 若改动涉及公开 API，同步检查 `docs/Manual.md` 和 `docs/GameLib.md`。
+2. 若改动涉及公开 API，同步检查 `docs/manual.md` 和 `docs/GameLib.md`。
 3. 修改后必须遵守上方 Code Constraints（Win32 主线）。
 4. 用 `examples/` 下的相关示例做回归验证（参考 Examples 表格选择对应主题）。
 

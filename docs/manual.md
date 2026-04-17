@@ -2,7 +2,7 @@
 
 本文档提供 GameLib.h 所有公开 API 的详细参考，按功能模块组织。
 
-每个接口按统一格式呈现：**功能介绍**、**函数签名**、**参数**、**返回值**、**备注**。
+每个接口按统一格式呈现：**功能介绍**、**函数声明**、**参数**、**返回值**、**备注**。
 
 ---
 
@@ -12,9 +12,9 @@
 
 创建窗口并初始化帧缓冲、输入、时间系统。`width/height` 决定固定 framebuffer 逻辑尺寸，打开后不会因窗口缩放而改变。支持 restart-safe 重开。
 
-**函数签名**
+**函数声明**
 ```cpp
-int Open(int width, int height, const char *title, bool center = false, bool resizable = false)
+int Open(int width, int height, const char *title, bool center = false, bool resizable = false);
 ```
 
 **参数**
@@ -50,9 +50,9 @@ int Open(int width, int height, const char *title, bool center = false, bool res
 
 判断窗口是否已关闭。
 
-**函数签名**
+**函数声明**
 ```cpp
-bool IsClosed() const
+bool IsClosed() const;
 ```
 
 **参数**
@@ -71,9 +71,9 @@ bool IsClosed() const
 
 刷新画面并处理输入。保存上一帧按键状态、派发 Windows 消息、同步客户区尺寸和输入、提交帧缓冲到窗口、更新 deltaTime 和 FPS。
 
-**函数签名**
+**函数声明**
 ```cpp
-void Update()
+void Update();
 ```
 
 **参数**
@@ -92,9 +92,9 @@ void Update()
 
 帧率控制，基于绝对帧边界做节拍，使用高精度计时器维护帧起点。
 
-**函数签名**
+**函数声明**
 ```cpp
-void WaitFrame(int fps)
+void WaitFrame(int fps);
 ```
 
 **参数**
@@ -116,9 +116,9 @@ void WaitFrame(int fps)
 
 获取上一帧到当前帧的时间间隔。
 
-**函数签名**
+**函数声明**
 ```cpp
-double GetDeltaTime() const
+double GetDeltaTime() const;
 ```
 
 **参数**
@@ -134,9 +134,9 @@ double GetDeltaTime() const
 
 获取当前帧率。
 
-**函数签名**
+**函数声明**
 ```cpp
-double GetFPS() const
+double GetFPS() const;
 ```
 
 **参数**
@@ -152,9 +152,9 @@ double GetFPS() const
 
 获取运行总时间。
 
-**函数签名**
+**函数声明**
 ```cpp
-double GetTime() const
+double GetTime() const;
 ```
 
 **参数**
@@ -170,10 +170,10 @@ double GetTime() const
 
 获取 framebuffer 逻辑尺寸。
 
-**函数签名**
+**函数声明**
 ```cpp
-int GetWidth() const
-int GetHeight() const
+int GetWidth() const;
+int GetHeight() const;
 ```
 
 **参数**
@@ -189,9 +189,9 @@ Framebuffer 宽度/高度（像素），类型 `int`。
 
 设置窗口客户区尺寸，不改变 framebuffer 尺寸。
 
-**函数签名**
+**函数声明**
 ```cpp
-void WinResize(int width, int height)
+void WinResize(int width, int height);
 ```
 
 **参数**
@@ -214,9 +214,9 @@ void WinResize(int width, int height)
 
 最大化或还原可缩放窗口。
 
-**函数签名**
+**函数声明**
 ```cpp
-void SetMaximized(bool maximized)
+void SetMaximized(bool maximized);
 ```
 
 **参数**
@@ -238,9 +238,9 @@ void SetMaximized(bool maximized)
 
 修改窗口标题。
 
-**函数签名**
+**函数声明**
 ```cpp
-void SetTitle(const char *title)
+void SetTitle(const char *title);
 ```
 
 **参数**
@@ -258,9 +258,9 @@ void SetTitle(const char *title)
 
 在窗口标题栏显示实时 FPS。
 
-**函数签名**
+**函数声明**
 ```cpp
-void ShowFps(bool show)
+void ShowFps(bool show);
 ```
 
 **参数**
@@ -282,9 +282,9 @@ void ShowFps(bool show)
 
 控制窗口客户区内的鼠标光标显示/隐藏。
 
-**函数签名**
+**函数声明**
 ```cpp
-void ShowMouse(bool show)
+void ShowMouse(bool show);
 ```
 
 **参数**
@@ -306,9 +306,9 @@ void ShowMouse(bool show)
 
 弹出消息框。
 
-**函数签名**
+**函数声明**
 ```cpp
-int ShowMessage(const char *text, const char *title = NULL, int buttons = MESSAGEBOX_OK)
+int ShowMessage(const char *text, const char *title = NULL, int buttons = MESSAGEBOX_OK);
 ```
 
 **参数**
@@ -335,9 +335,9 @@ int ShowMessage(const char *text, const char *title = NULL, int buttons = MESSAG
 
 用指定颜色填充当前裁剪矩形覆盖的帧缓冲区域。
 
-**函数签名**
+**函数声明**
 ```cpp
-void Clear(uint32_t color = COLOR_BLACK)
+void Clear(uint32_t color = COLOR_BLACK);
 ```
 
 **参数**
@@ -359,9 +359,9 @@ void Clear(uint32_t color = COLOR_BLACK)
 
 设置指定像素颜色（带裁剪和边界检查）。
 
-**函数签名**
+**函数声明**
 ```cpp
-void SetPixel(int x, int y, uint32_t color)
+void SetPixel(int x, int y, uint32_t color);
 ```
 
 **参数**
@@ -385,9 +385,9 @@ void SetPixel(int x, int y, uint32_t color)
 
 获取指定像素颜色。
 
-**函数签名**
+**函数声明**
 ```cpp
-uint32_t GetPixel(int x, int y) const
+uint32_t GetPixel(int x, int y) const;
 ```
 
 **参数**
@@ -407,9 +407,9 @@ uint32_t GetPixel(int x, int y) const
 
 设置当前裁剪矩形。
 
-**函数签名**
+**函数声明**
 ```cpp
-void SetClip(int x, int y, int w, int h)
+void SetClip(int x, int y, int w, int h);
 ```
 
 **参数**
@@ -434,9 +434,9 @@ void SetClip(int x, int y, int w, int h)
 
 清除当前裁剪，恢复整屏可见。
 
-**函数签名**
+**函数声明**
 ```cpp
-void ClearClip()
+void ClearClip();
 ```
 
 **参数**
@@ -451,9 +451,9 @@ void ClearClip()
 
 读取当前有效裁剪矩形（已与屏幕求交）。
 
-**函数签名**
+**函数声明**
 ```cpp
-void GetClip(int *x, int *y, int *w, int *h) const
+void GetClip(int *x, int *y, int *w, int *h) const;
 ```
 
 **参数**
@@ -474,12 +474,12 @@ void GetClip(int *x, int *y, int *w, int *h) const
 
 读取当前有效裁剪矩形的各个分量。
 
-**函数签名**
+**函数声明**
 ```cpp
-int GetClipX() const
-int GetClipY() const
-int GetClipW() const
-int GetClipH() const
+int GetClipX() const;
+int GetClipY() const;
+int GetClipW() const;
+int GetClipH() const;
 ```
 
 **参数**
@@ -495,9 +495,9 @@ int GetClipH() const
 
 将当前 framebuffer 保存为 24-bit BMP 文件。
 
-**函数签名**
+**函数声明**
 ```cpp
-void Screenshot(const char *filename)
+void Screenshot(const char *filename);
 ```
 
 **参数**
@@ -521,9 +521,9 @@ void Screenshot(const char *filename)
 
 绘制直线，使用 Bresenham 算法。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawLine(int x1, int y1, int x2, int y2, uint32_t color)
+void DrawLine(int x1, int y1, int x2, int y2, uint32_t color);
 ```
 
 **参数**
@@ -549,9 +549,9 @@ void DrawLine(int x1, int y1, int x2, int y2, uint32_t color)
 
 绘制矩形边框。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawRect(int x, int y, int w, int h, uint32_t color)
+void DrawRect(int x, int y, int w, int h, uint32_t color);
 ```
 
 **参数**
@@ -577,9 +577,9 @@ void DrawRect(int x, int y, int w, int h, uint32_t color)
 
 填充矩形区域。
 
-**函数签名**
+**函数声明**
 ```cpp
-void FillRect(int x, int y, int w, int h, uint32_t color)
+void FillRect(int x, int y, int w, int h, uint32_t color);
 ```
 
 **参数**
@@ -605,9 +605,9 @@ void FillRect(int x, int y, int w, int h, uint32_t color)
 
 绘制圆形边框，使用中点圆算法。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawCircle(int cx, int cy, int r, uint32_t color)
+void DrawCircle(int cx, int cy, int r, uint32_t color);
 ```
 
 **参数**
@@ -632,9 +632,9 @@ void DrawCircle(int cx, int cy, int r, uint32_t color)
 
 填充圆形。
 
-**函数签名**
+**函数声明**
 ```cpp
-void FillCircle(int cx, int cy, int r, uint32_t color)
+void FillCircle(int cx, int cy, int r, uint32_t color);
 ```
 
 **参数**
@@ -659,9 +659,9 @@ void FillCircle(int cx, int cy, int r, uint32_t color)
 
 绘制椭圆边框。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawEllipse(int cx, int cy, int rx, int ry, uint32_t color)
+void DrawEllipse(int cx, int cy, int rx, int ry, uint32_t color);
 ```
 
 **参数**
@@ -687,9 +687,9 @@ void DrawEllipse(int cx, int cy, int rx, int ry, uint32_t color)
 
 按扫描线方式填充椭圆。
 
-**函数签名**
+**函数声明**
 ```cpp
-void FillEllipse(int cx, int cy, int rx, int ry, uint32_t color)
+void FillEllipse(int cx, int cy, int rx, int ry, uint32_t color);
 ```
 
 **参数**
@@ -715,9 +715,9 @@ void FillEllipse(int cx, int cy, int rx, int ry, uint32_t color)
 
 绘制三角形边框（3 条 DrawLine）。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color)
+void DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color);
 ```
 
 **参数**
@@ -745,9 +745,9 @@ void DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color
 
 填充三角形，使用扫描线算法。
 
-**函数签名**
+**函数声明**
 ```cpp
-void FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color)
+void FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color);
 ```
 
 **参数**
@@ -777,9 +777,9 @@ void FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color
 
 使用内嵌 8x8 位图字体绘制文字。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawText(int x, int y, const char *text, uint32_t color)
+void DrawText(int x, int y, const char *text, uint32_t color);
 ```
 
 **参数**
@@ -804,9 +804,9 @@ void DrawText(int x, int y, const char *text, uint32_t color)
 
 将整数转为字符串后绘制。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawNumber(int x, int y, int number, uint32_t color)
+void DrawNumber(int x, int y, int number, uint32_t color);
 ```
 
 **参数**
@@ -831,9 +831,9 @@ void DrawNumber(int x, int y, int number, uint32_t color)
 
 放大版文字绘制，每个字体像素变为 `scale × scale` 矩形。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawTextScale(int x, int y, const char *text, uint32_t color, int scale)
+void DrawTextScale(int x, int y, const char *text, uint32_t color, int scale);
 ```
 
 **参数**
@@ -859,9 +859,9 @@ void DrawTextScale(int x, int y, const char *text, uint32_t color, int scale)
 
 格式化输出，类似 `printf`。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...)
+void DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...);
 ```
 
 **参数**
@@ -887,9 +887,9 @@ void DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...)
 
 放大版格式化输出。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawPrintfScale(int x, int y, uint32_t color, int scale, const char *fmt, ...)
+void DrawPrintfScale(int x, int y, uint32_t color, int scale, const char *fmt, ...);
 ```
 
 **参数**
@@ -918,10 +918,10 @@ void DrawPrintfScale(int x, int y, uint32_t color, int scale, const char *fmt, .
 
 使用可缩放字体渲染文字，支持 UTF-8。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawTextFont(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize)
-void DrawTextFont(int x, int y, const char *text, uint32_t color, int fontSize)
+void DrawTextFont(int x, int y, const char *text, uint32_t color, const char *fontName, int fontSize);
+void DrawTextFont(int x, int y, const char *text, uint32_t color, int fontSize);
 ```
 
 **参数**
@@ -948,10 +948,10 @@ Windows 版内部用 GDI 实现。不传 `fontName` 时使用 `"Microsoft YaHei"
 
 字体版格式化输出。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawPrintfFont(int x, int y, uint32_t color, const char *fontName, int fontSize, const char *fmt, ...)
-void DrawPrintfFont(int x, int y, uint32_t color, int fontSize, const char *fmt, ...)
+void DrawPrintfFont(int x, int y, uint32_t color, const char *fontName, int fontSize, const char *fmt, ...);
+void DrawPrintfFont(int x, int y, uint32_t color, int fontSize, const char *fmt, ...);
 ```
 
 **参数**
@@ -979,10 +979,10 @@ void DrawPrintfFont(int x, int y, uint32_t color, int fontSize, const char *fmt,
 
 获取文字在指定字体下的宽度。
 
-**函数签名**
+**函数声明**
 ```cpp
-int GetTextWidthFont(const char *text, const char *fontName, int fontSize)
-int GetTextWidthFont(const char *text, int fontSize)
+int GetTextWidthFont(const char *text, const char *fontName, int fontSize);
+int GetTextWidthFont(const char *text, int fontSize);
 ```
 
 **参数**
@@ -1003,10 +1003,10 @@ int GetTextWidthFont(const char *text, int fontSize)
 
 获取文字在指定字体下的高度。
 
-**函数签名**
+**函数声明**
 ```cpp
-int GetTextHeightFont(const char *text, const char *fontName, int fontSize)
-int GetTextHeightFont(const char *text, int fontSize)
+int GetTextHeightFont(const char *text, const char *fontName, int fontSize);
+int GetTextHeightFont(const char *text, int fontSize);
 ```
 
 **参数**
@@ -1033,9 +1033,9 @@ int GetTextHeightFont(const char *text, int fontSize)
 
 创建空白精灵。
 
-**函数签名**
+**函数声明**
 ```cpp
-int CreateSprite(int width, int height)
+int CreateSprite(int width, int height);
 ```
 
 **参数**
@@ -1059,9 +1059,9 @@ int CreateSprite(int width, int height)
 
 通用图片加载，支持 PNG/JPG/BMP/GIF/TIFF。
 
-**函数签名**
+**函数声明**
 ```cpp
-int LoadSprite(const char *filename)
+int LoadSprite(const char *filename);
 ```
 
 **参数**
@@ -1084,9 +1084,9 @@ int LoadSprite(const char *filename)
 
 从 BMP 文件加载精灵，支持 8/24/32-bit。
 
-**函数签名**
+**函数声明**
 ```cpp
-int LoadSpriteBMP(const char *filename)
+int LoadSpriteBMP(const char *filename);
 ```
 
 **参数**
@@ -1109,9 +1109,9 @@ int LoadSpriteBMP(const char *filename)
 
 释放精灵。
 
-**函数签名**
+**函数声明**
 ```cpp
-void FreeSprite(int id)
+void FreeSprite(int id);
 ```
 
 **参数**
@@ -1129,9 +1129,9 @@ void FreeSprite(int id)
 
 绘制精灵（不透明快路径）。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSprite(int id, int x, int y)
+void DrawSprite(int id, int x, int y);
 ```
 
 **参数**
@@ -1155,9 +1155,9 @@ void DrawSprite(int id, int x, int y)
 
 带标志的精灵绘制。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteEx(int id, int x, int y, int flags)
+void DrawSpriteEx(int id, int x, int y, int flags);
 ```
 
 **参数**
@@ -1182,9 +1182,9 @@ void DrawSpriteEx(int id, int x, int y, int flags)
 
 绘制精灵的子区域（sprite sheet 切图）。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteRegion(int id, int x, int y, int sx, int sy, int sw, int sh)
+void DrawSpriteRegion(int id, int x, int y, int sx, int sy, int sw, int sh);
 ```
 
 **参数**
@@ -1208,9 +1208,9 @@ void DrawSpriteRegion(int id, int x, int y, int sx, int sy, int sw, int sh)
 
 带标志绘制精灵子区域。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteRegionEx(int id, int x, int y, int sx, int sy, int sw, int sh, int flags = 0)
+void DrawSpriteRegionEx(int id, int x, int y, int sx, int sy, int sw, int sh, int flags = 0);
 ```
 
 **参数**
@@ -1235,9 +1235,9 @@ void DrawSpriteRegionEx(int id, int x, int y, int sx, int sy, int sw, int sh, in
 
 按目标尺寸缩放绘制精灵。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteScaled(int id, int x, int y, int w, int h, int flags = 0)
+void DrawSpriteScaled(int id, int x, int y, int w, int h, int flags = 0);
 ```
 
 **参数**
@@ -1264,9 +1264,9 @@ void DrawSpriteScaled(int id, int x, int y, int w, int h, int flags = 0)
 
 将精灵绕自身中心旋转后绘制。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteRotated(int id, int cx, int cy, double angleDeg, int flags = 0)
+void DrawSpriteRotated(int id, int cx, int cy, double angleDeg, int flags = 0);
 ```
 
 **参数**
@@ -1292,9 +1292,9 @@ void DrawSpriteRotated(int id, int cx, int cy, double angleDeg, int flags = 0)
 
 按帧号绘制 sprite sheet 中的帧。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteFrame(int id, int x, int y, int frameW, int frameH, int frameIndex, int flags = 0)
+void DrawSpriteFrame(int id, int x, int y, int frameW, int frameH, int frameIndex, int flags = 0);
 ```
 
 **参数**
@@ -1322,9 +1322,9 @@ void DrawSpriteFrame(int id, int x, int y, int frameW, int frameH, int frameInde
 
 按帧号选取子区域后缩放绘制。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteFrameScaled(int id, int x, int y, int frameW, int frameH, int frameIndex, int w, int h, int flags = 0)
+void DrawSpriteFrameScaled(int id, int x, int y, int frameW, int frameH, int frameIndex, int w, int h, int flags = 0);
 ```
 
 **参数**
@@ -1350,9 +1350,9 @@ void DrawSpriteFrameScaled(int id, int x, int y, int frameW, int frameH, int fra
 
 按帧号选取子区域后旋转绘制。
 
-**函数签名**
+**函数声明**
 ```cpp
-void DrawSpriteFrameRotated(int id, int cx, int cy, int frameW, int frameH, int frameIndex, double angleDeg, int flags = 0)
+void DrawSpriteFrameRotated(int id, int cx, int cy, int frameW, int frameH, int frameIndex, double angleDeg, int flags = 0);
 ```
 
 **参数**
@@ -1377,9 +1377,9 @@ void DrawSpriteFrameRotated(int id, int cx, int cy, int frameW, int frameH, int 
 
 修改精灵指定像素。
 
-**函数签名**
+**函数声明**
 ```cpp
-void SetSpritePixel(int id, int x, int y, uint32_t color)
+void SetSpritePixel(int id, int x, int y, uint32_t color);
 ```
 
 **参数**
@@ -1400,9 +1400,9 @@ void SetSpritePixel(int id, int x, int y, uint32_t color)
 
 读取精灵指定像素。
 
-**函数签名**
+**函数声明**
 ```cpp
-uint32_t GetSpritePixel(int id, int x, int y) const
+uint32_t GetSpritePixel(int id, int x, int y) const;
 ```
 
 **参数**
@@ -1423,10 +1423,10 @@ uint32_t GetSpritePixel(int id, int x, int y) const
 
 获取精灵尺寸。
 
-**函数签名**
+**函数声明**
 ```cpp
-int GetSpriteWidth(int id) const
-int GetSpriteHeight(int id) const
+int GetSpriteWidth(int id) const;
+int GetSpriteHeight(int id) const;
 ```
 
 **参数**
@@ -1445,10 +1445,10 @@ int GetSpriteHeight(int id) const
 
 设置或读取精灵的 Color Key。
 
-**函数签名**
+**函数声明**
 ```cpp
-void SetSpriteColorKey(int id, uint32_t color)
-uint32_t GetSpriteColorKey(int id) const
+void SetSpriteColorKey(int id, uint32_t color);
+uint32_t GetSpriteColorKey(int id) const;
 ```
 
 **参数**
@@ -1474,9 +1474,9 @@ uint32_t GetSpriteColorKey(int id) const
 
 检测按键是否正在按下（持续按住也返回 `true`）。
 
-**函数签名**
+**函数声明**
 ```cpp
-bool IsKeyDown(int key) const
+bool IsKeyDown(int key) const;
 ```
 
 **参数**
@@ -1495,7 +1495,7 @@ bool IsKeyDown(int key) const
 
 边沿检测，按键是否刚按下。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsKeyPressed(int key) const
 ```
@@ -1516,7 +1516,7 @@ bool IsKeyPressed(int key) const
 
 边沿检测，按键是否刚松开。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsKeyReleased(int key) const
 ```
@@ -1537,7 +1537,7 @@ bool IsKeyReleased(int key) const
 
 获取鼠标逻辑位置（已换算到 framebuffer 坐标）。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetMouseX() const
 int GetMouseY() const
@@ -1560,7 +1560,7 @@ int GetMouseY() const
 
 检测鼠标按键是否按下。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsMouseDown(int button) const
 ```
@@ -1581,7 +1581,7 @@ bool IsMouseDown(int button) const
 
 边沿检测，鼠标按键是否刚按下。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsMousePressed(int button) const
 ```
@@ -1602,7 +1602,7 @@ bool IsMousePressed(int button) const
 
 边沿检测，鼠标按键是否刚松开。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsMouseReleased(int button) const
 ```
@@ -1623,7 +1623,7 @@ bool IsMouseReleased(int button) const
 
 获取自上次 `Update()` 以来累计的滚轮增量。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetMouseWheelDelta() const
 ```
@@ -1645,7 +1645,7 @@ int GetMouseWheelDelta() const
 
 获取窗口当前是否处于激活状态。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsActive() const
 ```
@@ -1669,7 +1669,7 @@ bool IsActive() const
 
 阻塞式蜂鸣。
 
-**函数签名**
+**函数声明**
 ```cpp
 void PlayBeep(int frequency, int duration)
 ```
@@ -1690,7 +1690,7 @@ void PlayBeep(int frequency, int duration)
 
 播放 WAV 音效（异步）。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool PlayWAV(const char *filename, bool loop = false)
 ```
@@ -1716,7 +1716,7 @@ bool PlayWAV(const char *filename, bool loop = false)
 
 停止当前 WAV 播放。
 
-**函数签名**
+**函数声明**
 ```cpp
 void StopWAV()
 ```
@@ -1733,7 +1733,7 @@ void StopWAV()
 
 使用 MCI 播放背景音乐。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool PlayMusic(const char *filename, bool loop = true)
 ```
@@ -1759,7 +1759,7 @@ bool PlayMusic(const char *filename, bool loop = true)
 
 停止背景音乐。
 
-**函数签名**
+**函数声明**
 ```cpp
 void StopMusic()
 ```
@@ -1776,7 +1776,7 @@ void StopMusic()
 
 获取背景音乐播放状态。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsMusicPlaying() const
 ```
@@ -1796,7 +1796,7 @@ bool IsMusicPlaying() const
 
 创建瓦片地图。
 
-**函数签名**
+**函数声明**
 ```cpp
 int CreateTilemap(int cols, int rows, int tileSize, int tilesetId)
 ```
@@ -1824,7 +1824,7 @@ tileset 精灵按 `tileSize` 切分瓦片，编号从 0 开始。所有格子初
 
 保存地图为 `.glm` 文件。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool SaveTilemap(const char *filename, int mapId) const
 ```
@@ -1850,7 +1850,7 @@ bool SaveTilemap(const char *filename, int mapId) const
 
 从 `.glm` 文件创建地图。
 
-**函数签名**
+**函数声明**
 ```cpp
 int LoadTilemap(const char *filename, int tilesetId)
 ```
@@ -1876,7 +1876,7 @@ int LoadTilemap(const char *filename, int tilesetId)
 
 释放地图。
 
-**函数签名**
+**函数声明**
 ```cpp
 void FreeTilemap(int mapId)
 ```
@@ -1900,7 +1900,7 @@ void FreeTilemap(int mapId)
 
 设置瓦片。
 
-**函数签名**
+**函数声明**
 ```cpp
 void SetTile(int mapId, int col, int row, int tileId)
 ```
@@ -1927,7 +1927,7 @@ void SetTile(int mapId, int col, int row, int tileId)
 
 读取瓦片编号。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetTile(int mapId, int col, int row) const
 ```
@@ -1950,7 +1950,7 @@ int GetTile(int mapId, int col, int row) const
 
 获取地图网格列数/行数。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetTilemapCols(int mapId) const
 int GetTilemapRows(int mapId) const
@@ -1972,7 +1972,7 @@ int GetTilemapRows(int mapId) const
 
 获取瓦片边长（像素）。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetTileSize(int mapId) const
 ```
@@ -1993,7 +1993,7 @@ int GetTileSize(int mapId) const
 
 像素坐标转瓦片坐标。
 
-**函数签名**
+**函数声明**
 ```cpp
 int WorldToTileCol(int mapId, int x) const
 int WorldToTileRow(int mapId, int y) const
@@ -2021,7 +2021,7 @@ int WorldToTileRow(int mapId, int y) const
 
 按像素位置读取瓦片。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetTileAtPixel(int mapId, int x, int y) const
 ```
@@ -2048,7 +2048,7 @@ int GetTileAtPixel(int mapId, int x, int y) const
 
 批量填充矩形瓦片区域。
 
-**函数签名**
+**函数声明**
 ```cpp
 void FillTileRect(int mapId, int col, int row, int cols, int rows, int tileId)
 ```
@@ -2077,7 +2077,7 @@ void FillTileRect(int mapId, int col, int row, int cols, int rows, int tileId)
 
 清空整张地图为同一瓦片。
 
-**函数签名**
+**函数声明**
 ```cpp
 void ClearTilemap(int mapId, int tileId = -1)
 ```
@@ -2102,7 +2102,7 @@ void ClearTilemap(int mapId, int tileId = -1)
 
 绘制瓦片地图。
 
-**函数签名**
+**函数声明**
 ```cpp
 void DrawTilemap(int mapId, int x, int y, int flags = 0)
 ```
@@ -2131,7 +2131,7 @@ void DrawTilemap(int mapId, int x, int y, int flags = 0)
 
 设置下一帧要切换的场景。
 
-**函数签名**
+**函数声明**
 ```cpp
 void SetScene(int scene)
 ```
@@ -2155,7 +2155,7 @@ void SetScene(int scene)
 
 获取当前场景编号。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetScene() const
 ```
@@ -2173,7 +2173,7 @@ int GetScene() const
 
 判断本帧是否刚切换到新场景。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool IsSceneChanged() const
 ```
@@ -2195,7 +2195,7 @@ bool IsSceneChanged() const
 
 获取切换前的场景编号。
 
-**函数签名**
+**函数声明**
 ```cpp
 int GetPreviousScene() const
 ```
@@ -2215,7 +2215,7 @@ int GetPreviousScene() const
 
 立即模式按钮。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool Button(int x, int y, int w, int h, const char *text, uint32_t color)
 ```
@@ -2245,7 +2245,7 @@ bool Button(int x, int y, int w, int h, const char *text, uint32_t color)
 
 立即模式复选框。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool Checkbox(int x, int y, const char *text, bool *checked)
 ```
@@ -2273,7 +2273,7 @@ bool Checkbox(int x, int y, const char *text, bool *checked)
 
 立即模式单选框。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool RadioBox(int x, int y, const char *text, int *value, int index)
 ```
@@ -2302,7 +2302,7 @@ bool RadioBox(int x, int y, const char *text, int *value, int index)
 
 立即模式开关按钮。
 
-**函数签名**
+**函数声明**
 ```cpp
 bool ToggleButton(int x, int y, int w, int h, const char *text, bool *toggled, uint32_t color)
 ```
@@ -2339,7 +2339,7 @@ bool ToggleButton(int x, int y, int w, int h, const char *text, bool *toggled, u
 
 将整数写入存档。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool SaveInt(const char *filename, const char *key, int value)
 ```
@@ -2366,7 +2366,7 @@ static bool SaveInt(const char *filename, const char *key, int value)
 
 将浮点数写入存档。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool SaveFloat(const char *filename, const char *key, float value)
 ```
@@ -2393,7 +2393,7 @@ static bool SaveFloat(const char *filename, const char *key, float value)
 
 将字符串写入存档。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool SaveString(const char *filename, const char *key, const char *value)
 ```
@@ -2420,7 +2420,7 @@ static bool SaveString(const char *filename, const char *key, const char *value)
 
 从存档读取整数。
 
-**函数签名**
+**函数声明**
 ```cpp
 static int LoadInt(const char *filename, const char *key, int defaultValue = 0)
 ```
@@ -2443,7 +2443,7 @@ static int LoadInt(const char *filename, const char *key, int defaultValue = 0)
 
 从存档读取浮点数。
 
-**函数签名**
+**函数声明**
 ```cpp
 static float LoadFloat(const char *filename, const char *key, float defaultValue = 0.0f)
 ```
@@ -2466,7 +2466,7 @@ static float LoadFloat(const char *filename, const char *key, float defaultValue
 
 从存档读取字符串。
 
-**函数签名**
+**函数声明**
 ```cpp
 static const char *LoadString(const char *filename, const char *key, const char *defaultValue = "")
 ```
@@ -2489,7 +2489,7 @@ static const char *LoadString(const char *filename, const char *key, const char 
 
 判断存档中是否存在指定 key。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool HasSaveKey(const char *filename, const char *key)
 ```
@@ -2511,7 +2511,7 @@ static bool HasSaveKey(const char *filename, const char *key)
 
 从存档中删除指定 key。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool DeleteSaveKey(const char *filename, const char *key)
 ```
@@ -2537,7 +2537,7 @@ static bool DeleteSaveKey(const char *filename, const char *key)
 
 删除整个存档文件。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool DeleteSave(const char *filename)
 ```
@@ -2562,7 +2562,7 @@ static bool DeleteSave(const char *filename)
 
 返回指定范围内的随机整数。
 
-**函数签名**
+**函数声明**
 ```cpp
 static int Random(int minVal, int maxVal)
 ```
@@ -2588,7 +2588,7 @@ static int Random(int minVal, int maxVal)
 
 AABB 矩形碰撞检测。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool RectOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2)
 ```
@@ -2616,7 +2616,7 @@ static bool RectOverlap(int x1, int y1, int w1, int h1, int x2, int y2, int w2, 
 
 圆形碰撞检测。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool CircleOverlap(int cx1, int cy1, int r1, int cx2, int cy2, int r2)
 ```
@@ -2646,7 +2646,7 @@ static bool CircleOverlap(int cx1, int cy1, int r1, int cx2, int cy2, int r2)
 
 判断点是否在矩形内。
 
-**函数签名**
+**函数声明**
 ```cpp
 static bool PointInRect(int px, int py, int x, int y, int w, int h)
 ```
@@ -2672,7 +2672,7 @@ static bool PointInRect(int px, int py, int x, int y, int w, int h)
 
 计算两点距离。
 
-**函数签名**
+**函数声明**
 ```cpp
 static float Distance(int x1, int y1, int x2, int y2)
 ```
@@ -2696,7 +2696,7 @@ static float Distance(int x1, int y1, int x2, int y2)
 
 绘制网格线。
 
-**函数签名**
+**函数声明**
 ```cpp
 void DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color)
 ```
@@ -2721,7 +2721,7 @@ void DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color)
 
 填充网格中的一个单元格。
 
-**函数签名**
+**函数声明**
 ```cpp
 void FillCell(int gridX, int gridY, int row, int col, int cellSize, uint32_t color)
 ```
