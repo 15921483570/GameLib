@@ -97,12 +97,28 @@ g++ -std=c++11 -O2 -o game.exe main.cpp -lSDL2
 - 搜索或 review 时忽略 `examples/` 下的 `.exe` / `.o` 编译产物。
 - 若修改涉及稳定行为、接口语义或产品线边界，同一个改动里同步更新对应文档。
 
+### 任务分类与行动路线
+
+收到用户请求后，先判断属于哪类任务，再执行对应流程：
+
+| 任务类型 | 判断标准 | 行动路线 |
+|----------|---------|---------|
+| 用 GameLib.h 写新游戏 | 用户描述想做一个游戏/功能 | → 见"用 GameLib.h 做游戏"流程 |
+| 迭代 GameLib.h 内部实现 | 改动 GameLib.h 文件本身 | → 见"迭代 GameLib.h"流程 |
+| 迭代 GameLib.SDL.h | 改动 GameLib.SDL.h 文件本身 | → 见"迭代 GameLib.SDL.h"流程 |
+| 新增/修改公开 API | 涉及 `GameLib` 类的公开方法或成员 | 两条线都要检查，双线同步 |
+| 改文档/示例/资源 | 只改 `.md`、`examples/`、`assets/` | 读对应文档，改完更新同一文档 |
+
+不确定时，先问用户再动手，不要猜。
+
 ### 用 GameLib.h 做游戏
 
-1. 阅读 `docs/manual.md` 了解公开 API。
-2. 阅读 `assets/sprites.md` 和 `assets/sound.md`，优先使用现有素材。
-3. 参考上方 Examples 表格，找到与目标功能最接近的示例作为起点。
-4. 游戏文件放在 `examples/` 目录下，通过 `#include "../GameLib.h"` 引入。
+1. **先理解需求**：问用户想要什么类型的游戏或功能，确认核心玩法。
+2. **读 API 文档**：阅读 `docs/manual.md` 或 `docs/quickref.md` 了解公开 API。
+3. **选示例起点**：参考上方 Examples 表格，找到与目标功能最接近的示例复制或修改。
+4. **优先用现有素材**：查 `assets/sprites.md` 和 `assets/sound.md`，优先使用已有图片和音效。
+5. **先跑最小原型**：不要一开始就写完整游戏，先让基本功能跑起来（显示窗口、能操作），再逐步加功能。
+6. **文件位置**：游戏文件放在 `examples/` 目录下，通过 `#include "../GameLib.h"` 引入。
 
 ### 迭代 GameLib.h
 
@@ -117,6 +133,24 @@ g++ -std=c++11 -O2 -o game.exe main.cpp -lSDL2
 2. 若改动涉及稳定行为或构建方式，同步更新 `docs/GameLib.SDL.md`。
 3. 修改后必须遵守上方 Code Constraints（SDL 产品线）。
 4. 用 `examples/` 下的统一示例做回归验证（参考 Examples 表格选择对应主题）。
+
+### 每次改动最小清单
+
+1. **读**：读相关文档（见 Documentation 表和任务分类表）
+2. **写**：写/改代码（遵守 Code Constraints）
+3. **验**：编译对应示例验证（见回归验证速查）
+4. **更**：更新相关文档（如果语义/行为/接口变了）
+
+### 禁止事项
+
+- **禁止使用 C++14+ 特性**：`auto` 返回类型推导、`std::make_unique`、结构化绑定、`if constexpr` 等。
+- **禁止混用两条产品线**：不要在同一个 `.cpp` 文件中同时 include `GameLib.h` 和 `GameLib.SDL.h`。
+- **禁止直接链接 Windows API**：必须通过 `LoadLibrary`/`GetProcAddress` 动态加载。
+- **禁止引入外部依赖**：GameLib.h 零外部依赖，所有功能在单个头文件内实现。
+- **不要用 `git add -A` 或 `git add .`**：可能误提交编译产物或敏感文件，按文件名逐个 `git add`。
+- **不要提交编译产物**：忽略 `examples/` 下的 `.exe`、`.o` 等文件。
+- **不要假设 SDL 版和 Win32 版行为完全一致**：修改一条线时，另一线需独立验证。
+- **不要在没有读过对应文档的情况下直接改代码**：先看 Documentation 表格找到该读的文档。
 
 ### 回归验证速查
 
