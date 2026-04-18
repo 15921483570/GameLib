@@ -1210,7 +1210,7 @@ GameLib::GameLib()
                     "Fatal Error", MB_OK | MB_ICONERROR);
         exit(1);
     }
-    }
+}
 
 
 void GameLib::_DestroyGraphicsResources()
