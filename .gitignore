@@ -55,6 +55,8 @@
 /assets/temp/*
 /assets/workshop/*
 
+nul
+
 *.zip
 *.rar
 *.7z
