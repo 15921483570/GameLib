@@ -4,7 +4,7 @@
 
 `GameLib.SDL.h` 是 `GameLib.h` 的 **独立 SDL 版产品线**，目标是在 **Windows / macOS / Linux** 上提供尽量一致的教学型 2D 游戏开发体验。
 
-**当前版本**: `1.9.0`
+**当前版本**: `1.9.1`
 
 它不是对现有 `GameLib.h` 的直接替换，也不是在原头文件中塞入大量 `#ifdef SDL` 的混合版本，而是一份 **单独维护的跨平台单头文件**。其公开使用方式尽量保持与 `GameLib.h` 一致：
 
@@ -349,6 +349,7 @@ GameLib.SDL.h
 以下公开接口目标是 **名称、参数、基本语义保持一致**：
 
 - `Open` / `IsClosed` / `Update` / `WaitFrame` / `WinResize` / `SetMaximized`
+- `GetWidth` / `GetHeight` / `GetFramebuffer`
 - `Clear` / `SetPixel` / `GetPixel` / `SetClip` / `ClearClip` / `GetClip`
 - `GetClipX` / `GetClipY` / `GetClipW` / `GetClipH` / `Screenshot`
 - `DrawLine` / `DrawRect` / `FillRect` / `DrawCircle` / `FillCircle` / `DrawEllipse` / `FillEllipse` / `DrawTriangle` / `FillTriangle`
@@ -473,6 +474,7 @@ GameLib.SDL.h
 其中：
 
 - `_framebuffer` 仍是 `uint32_t*` 的 CPU 内存帧缓冲，尺寸在 `Open()` 时固定。
+- `GetFramebuffer()` 返回 `_framebuffer` 指针，像素寻址 `fb[y * GetWidth() + x]`；`Open()` 前或窗口关闭后返回 `NULL`。
 - `_frameTexture` 使用 `SDL_PIXELFORMAT_ARGB8888`。
 - `Update()` 将 `_framebuffer` 上传到 `_frameTexture`；若窗口客户区尺寸与 framebuffer 一致，则直接复制到 renderer，否则缩放填满当前客户区，再 `SDL_RenderPresent()`。
 
@@ -1025,6 +1027,7 @@ static bool _srandDone;
 - `Update`
 - `WaitFrame`
 - `GetDeltaTime` / `GetFPS` / `GetTime`
+- `GetWidth` / `GetHeight` / `GetFramebuffer`
 - 键盘鼠标输入
 - `Clear` / `SetPixel` / `GetPixel`
 - `DrawLine` / `DrawRect` / `FillRect` / `DrawCircle` / `FillCircle` / `DrawEllipse` / `FillEllipse`
