@@ -4371,12 +4371,15 @@ void GameLib::_MixAudio(int16_t *output_buffer, int sample_count)
         ch->position += frames_to_mix * bytes_per_frame;
 
         if (ch->position >= ch->wav->size) {
-            if (ch->repeat == 0) {
+            if (ch->repeat <= 0) {
+                // <=0: infinite loop
                 ch->position = 0;
             } else if (ch->repeat > 1) {
+                // >1: decrement and loop
                 ch->position = 0;
                 ch->repeat--;
             } else {
+                // 1: last play, stop now
                 if (ch->wav) {
                     ch->wav->ref_count--;
                     if (ch->wav->temporary) delete ch->wav;

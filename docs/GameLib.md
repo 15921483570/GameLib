@@ -305,7 +305,7 @@ struct _Channel {
     int id;             // 通道 ID（由 _AllocateChannel 分配）
     _WavData *wav;
     int volume;
-    int repeat;         // 剩余重复次数；0 = 无限循环，1 = 最后一次，>1 = 递减
+    int repeat;         // 剩余播放次数；<=0 = 无限循环，1 = 最后一次，>1 = 递减
     uint32_t position;
     bool is_playing;
 };
@@ -697,7 +697,7 @@ static bool _srandDone; // srand 是否已初始化
 #### `int PlayBeep(int frequency, int duration, int repeat = 1, int volume = 1000)`
 - 异步蜂鸣，内部生成正弦波 PCM 通过 `PlayPCM` 播放
 - `frequency`: 频率（Hz），`duration`: 持续时间（毫秒）
-- `repeat`: 重复次数，0 表示无限循环，默认 1（单次播放）
+- `repeat`: 播放次数，≤0 表示无限循环，默认 1（单次播放），>1 时每次播放完递减
 - `volume`: 通道音量，范围 0~1000，默认 1000（满音量）
 - 成功返回通道 ID（正整数），失败返回 -1（参数错误）或 -2（音频设备初始化失败）
 - 音频设备惰性初始化：首次调用时才创建 waveOut 设备
@@ -705,7 +705,7 @@ static bool _srandDone; // srand 是否已初始化
 #### `int PlayWAV(const char *filename, int repeat = 1, int volume = 1000)`
 - 使用 waveOut 软件混音器播放 WAV 音效（异步，多通道）
 - `filename` 按 **UTF-8** 解释，内部转为宽字符路径
-- `repeat` 为重复次数，0 表示无限循环，默认 1（单次播放）
+- `repeat` 为播放次数，≤0 表示无限循环，默认 1（单次播放），>1 时每次播放完递减
 - `volume` 为通道音量，范围 0~1000，默认 1000（满音量）
 - 每次调用分配独立通道，同一 WAV 文件可重叠播放
 - 成功返回通道 ID（正整数），失败返回 -1（文件错误）或 -2（音频设备初始化失败）

@@ -114,11 +114,11 @@
 | --------------------------- | ------------------------ |
 | `PlayWAV(filename, repeat, volume)` | 播放音效，返回通道 ID（正整数），失败 -1/-2/-4 |
 | `PlayPCM(pcm, nchannels, nsamples, sample_rate, repeat, volume)` | 播放原始 PCM 数据，返回通道 ID，失败 -1/-2/-4 |
-| `StopWAV(channel)`          | 停止指定通道音效，成功返回 1 |
+| `StopWAV(channel)`          | 停止指定通道音效，成功返回 0，无效通道返回 -1 |
 | `IsPlaying(channel)`        | 查询通道是否播放中，返回 1/0 |
 | `SetVolume(channel, volume)` | 设置通道音量（0~1000） |
 | `StopAll()`                 | 停止所有音效             |
-| `SetMasterVolume(volume)`   | 设置主音量（0~1000），返回实际值 |
+| `SetMasterVolume(volume)`   | 设置主音量（0~1000），始终返回 0 |
 | `GetMasterVolume()`         | 返回当前主音量           |
 | `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI/WAV；按扩展名选择 MCI 类型，MIDI 循环走 notify 重播），成功返回 `true` |
 | `StopMusic()`               | 停止背景音乐             |

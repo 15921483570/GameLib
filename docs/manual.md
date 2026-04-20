@@ -1706,7 +1706,7 @@ int PlayBeep(int frequency, int duration, int repeat = 1, int volume = 1000);
 |------|------|------|
 | `frequency` | `int` | 频率（Hz），如 262=do, 294=re, 330=mi, 349=fa, 392=so |
 | `duration` | `int` | 持续时间（毫秒） |
-| `repeat` | `int` | 重复次数，0=无限循环，默认 1 |
+| `repeat` | `int` | 播放次数，≤0 为无限循环，默认 1（单次播放），>1 递减 |
 | `volume` | `int` | 通道音量 0~1000，默认 1000 |
 
 **返回值**
@@ -1733,7 +1733,7 @@ int PlayWAV(const char *filename, int repeat = 1, int volume = 1000);
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `filename` | `const char *` | WAV 文件路径，UTF-8 |
-| `repeat` | `int` | 重复次数，-1 为无限循环，默认 1 |
+| `repeat` | `int` | 播放次数，≤0 为无限循环，默认 1（单次播放），>1 递减 |
 | `volume` | `int` | 通道音量 0~1000，默认 1000 |
 
 **返回值**
@@ -1763,7 +1763,7 @@ int PlayPCM(const int16_t *pcm, int nchannels, int nsamples, int sample_rate, in
 | `nchannels` | `int` | 声道数（1=单声道，2=立体声） |
 | `nsamples` | `int` | `pcm` 数组中 int16_t 的总数量 |
 | `sample_rate` | `int` | 采样率（如 44100、22050） |
-| `repeat` | `int` | 重复次数，0=无限循环，默认 1 |
+| `repeat` | `int` | 播放次数，≤0 为无限循环，默认 1（单次播放），>1 递减 |
 | `volume` | `int` | 通道音量 0~1000，默认 1000 |
 
 **返回值**
@@ -1793,7 +1793,7 @@ int StopWAV(int channel);
 
 **返回值**
 
-成功返回 1，无效通道返回 0。
+成功返回 0，无效通道返回 -1。
 
 ---
 
@@ -1836,7 +1836,7 @@ int SetVolume(int channel, int volume);
 
 **返回值**
 
-成功返回新音量值，无效通道返回 -1。
+成功返回 0，无效通道返回 -1。
 
 ---
 
@@ -1874,7 +1874,7 @@ int SetMasterVolume(int volume);
 
 **返回值**
 
-返回实际设置的主音量值。
+始终返回 0。
 
 ---
 
