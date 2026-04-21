@@ -312,6 +312,7 @@ public:
     void SetTitle(const char *title);
     void ShowFps(bool show);
     void ShowMouse(bool show);
+    void AspectLock(bool lock, uint32_t color = COLOR_BLACK);
     int ShowMessage(const char *text, const char *title = NULL, int buttons = MESSAGEBOX_OK);
 
     void Clear(uint32_t color = COLOR_BLACK);
@@ -498,6 +499,14 @@ private:
     int _clipW;
     int _clipH;
     bool _resizable;
+
+    // aspect lock
+    bool _aspectLock;
+    uint32_t _aspectColor;
+    int _aspectOffsetX;
+    int _aspectOffsetY;
+    int _aspectContentW;
+    int _aspectContentH;
 
     uint32_t *_framebuffer;
 
@@ -962,6 +971,12 @@ GameLib::GameLib()
     _clipW = 0;
     _clipH = 0;
     _resizable = false;
+    _aspectLock = false;
+    _aspectColor = COLOR_BLACK;
+    _aspectOffsetX = 0;
+    _aspectOffsetY = 0;
+    _aspectContentW = 0;
+    _aspectContentH = 0;
     _framebuffer = NULL;
     _textSrcRowMap = NULL;
     _textSrcColMap = NULL;
@@ -1114,6 +1129,10 @@ void GameLib::_DestroyWindowResources()
     _clipW = 0;
     _clipH = 0;
     _resizable = false;
+    _aspectOffsetX = 0;
+    _aspectOffsetY = 0;
+    _aspectContentW = 0;
+    _aspectContentH = 0;
 }
 
 bool GameLib::_EnsureImageReady()
@@ -1498,8 +1517,19 @@ void GameLib::_SetMouseFromWindowCoords(int x, int y)
     if (x >= _windowWidth) x = _windowWidth - 1;
     if (y >= _windowHeight) y = _windowHeight - 1;
 
-    _mouseX = (int)(((long long)x * (long long)_width) / (long long)_windowWidth);
-    _mouseY = (int)(((long long)y * (long long)_height) / (long long)_windowHeight);
+    if (!_aspectLock || _aspectContentW <= 0 || _aspectContentH <= 0) {
+        _mouseX = (int)(((long long)x * (long long)_width) / (long long)_windowWidth);
+        _mouseY = (int)(((long long)y * (long long)_height) / (long long)_windowHeight);
+    } else {
+        int cx = x - _aspectOffsetX;
+        int cy = y - _aspectOffsetY;
+        if (cx < 0) cx = 0;
+        else if (cx >= _aspectContentW) cx = _aspectContentW - 1;
+        if (cy < 0) cy = 0;
+        else if (cy >= _aspectContentH) cy = _aspectContentH - 1;
+        _mouseX = (int)(((long long)cx * (long long)_width) / (long long)_aspectContentW);
+        _mouseY = (int)(((long long)cy * (long long)_height) / (long long)_aspectContentH);
+    }
 }
 
 void GameLib::_SyncInputState()
@@ -1709,16 +1739,43 @@ void GameLib::Update()
     }
 
     SDL_UpdateTexture(_frameTexture, NULL, _framebuffer, _width * (int)sizeof(uint32_t));
-    SDL_RenderClear(_renderer);
-    if (_windowWidth == _width && _windowHeight == _height) {
+
+    if (_aspectLock && (_windowWidth != _width || _windowHeight != _height)) {
+        int scaleW = _windowWidth;
+        int scaleH = (int)(((long long)_windowWidth * (long long)_height) / (long long)_width);
+        if (scaleH > _windowHeight) {
+            scaleH = _windowHeight;
+            scaleW = (int)(((long long)_windowHeight * (long long)_width) / (long long)_height);
+        }
+        _aspectContentW = scaleW;
+        _aspectContentH = scaleH;
+        _aspectOffsetX = (_windowWidth - scaleW) / 2;
+        _aspectOffsetY = (_windowHeight - scaleH) / 2;
+
+        uint8_t r = (_aspectColor >> 16) & 0xff;
+        uint8_t g = (_aspectColor >> 8) & 0xff;
+        uint8_t b = _aspectColor & 0xff;
+        SDL_SetRenderDrawColor(_renderer, r, g, b, 255);
+        SDL_RenderClear(_renderer);
+        SDL_Rect dstRect;
+        dstRect.x = _aspectOffsetX;
+        dstRect.y = _aspectOffsetY;
+        dstRect.w = _aspectContentW;
+        dstRect.h = _aspectContentH;
+        SDL_RenderCopy(_renderer, _frameTexture, NULL, &dstRect);
+    } else if (_windowWidth == _width && _windowHeight == _height) {
+        SDL_RenderClear(_renderer);
         SDL_RenderCopy(_renderer, _frameTexture, NULL, NULL);
     } else if (_windowWidth > 0 && _windowHeight > 0) {
+        SDL_RenderClear(_renderer);
         SDL_Rect dstRect;
         dstRect.x = 0;
         dstRect.y = 0;
         dstRect.w = _windowWidth;
         dstRect.h = _windowHeight;
         SDL_RenderCopy(_renderer, _frameTexture, NULL, &dstRect);
+    } else {
+        SDL_RenderClear(_renderer);
     }
     SDL_RenderPresent(_renderer);
 }
@@ -1815,6 +1872,12 @@ void GameLib::ShowMouse(bool show)
     if (_sdlReady || SDL_WasInit(SDL_INIT_VIDEO)) {
         SDL_ShowCursor(_mouseVisible ? SDL_ENABLE : SDL_DISABLE);
     }
+}
+
+void GameLib::AspectLock(bool lock, uint32_t color)
+{
+    _aspectLock = lock;
+    _aspectColor = color;
 }
 
 int GameLib::ShowMessage(const char *text, const char *title, int buttons)

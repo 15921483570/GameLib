@@ -82,6 +82,8 @@ int main()
 
     game.Open(SW, SH, "Demo 1 - Clip Rectangle Tilemap", true, true);
     game.ShowFps(true);
+	game.AspectLock(true, COLOR_BLUE);
+	game.WinResize(800, 600);
 
     int fgTileset = game.LoadSprite("../assets/tileset.png");
     int bgTileset = makeBgTileset(game);

@@ -418,6 +418,13 @@ GameLib.SDL.h
 - 库内部缓存 `_mouseVisible`，因此在 `Open()` 前调用也能在窗口创建后自动生效。
 - SDL 的鼠标光标显示是进程级语义，因此析构时应恢复为可见，避免把宿主环境留在隐藏光标状态。
 
+#### `AspectLock`
+
+- SDL 版实现利用 `SDL_SetRenderDrawColor` + `SDL_RenderClear` 填满整个客户区作为黑边，再用 `SDL_RenderCopy` 将 framebuffer 纹理仅绘制到内容区域（居中）。
+- 缩放参数计算与 Win32 版一致：先按宽度适配，若高度溢出则改为按高度适配，居中偏移。
+- 鼠标坐标映射逻辑与 Win32 版完全一致：基于内容区域映射，黑边坐标 clamp 到 framebuffer 边缘。
+- SDL 版不需要 `PresentMapX/Y` 预计算映射表，渲染由 SDL renderer 处理。
+
 #### `ShowMessage`
 
 - SDL 版使用 `SDL_ShowSimpleMessageBox()` 或 `SDL_ShowMessageBox()` 实现，按钮布局与 Windows 版保持 `MESSAGEBOX_OK` / `MESSAGEBOX_YESNO` 两档。
@@ -884,6 +891,14 @@ int _clipH;
 int _windowWidth;
 int _windowHeight;
 bool _resizable;
+
+// Aspect Lock
+bool _aspectLock;
+uint32_t _aspectColor;
+int _aspectOffsetX;
+int _aspectOffsetY;
+int _aspectContentW;
+int _aspectContentH;
 
 // 帧缓冲
 uint32_t *_framebuffer;

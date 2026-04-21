@@ -322,6 +322,35 @@ void ShowMouse(bool show);
 
 ---
 
+### AspectLock
+
+锁定 framebuffer 长宽比，在缩放显示时保持原始比例，多余区域用指定颜色填充黑边。
+
+**函数声明**
+```cpp
+void AspectLock(bool lock, uint32_t color = COLOR_BLACK);
+```
+
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `lock` | `bool` | 是否锁定长宽比。默认不锁定 |
+| `color` | `uint32_t` | 黑边填充颜色，默认 `COLOR_BLACK` |
+
+**返回值**
+无
+
+**备注**
+
+- 默认不锁定，缩放时 framebuffer 像素填满整个客户区（可能变形）。
+- 锁定后，缩放时保持 `_width:_height` 的长宽比不变，居中显示内容，上下或左右用 `color` 填充黑边。
+- 鼠标坐标（`GetMouseX/Y`）会映射到内容区域，黑边区域的鼠标坐标 clamp 到 framebuffer 边缘。
+- 当窗口客户区尺寸与 framebuffer 一致时，锁定与否行为相同（无需缩放，无黑边）。
+- 可在运行时随时切换锁定状态和颜色。
+
+---
+
 ### ShowMessage
 
 弹出消息框。
